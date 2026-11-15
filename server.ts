@@ -65,6 +65,864 @@ const inFlightEpgFetches = new Map<string, Promise<EpgCacheEntry | null>>();
 const PLAYLIST_TTL_MS = 15 * 60 * 1000;
 const EPG_TTL_MS = 30 * 60 * 1000;
 
+interface Adult18CachePayload {
+  timestamp: number;
+  category: { id: string; name: string; description: string };
+  playlistUrl: string;
+  apiEndpoints: {
+    channels: string;
+    streams: string;
+    logos: string;
+    categories: string;
+  };
+  playableChannels: Array<{
+    id: string;
+    name: string;
+    tvgId: string;
+    tvgLogo: string;
+    tvgCountry: string;
+    groupTitle: string;
+    streamUrl: string;
+    streamFormat: 'hls' | 'youtube' | 'mp4';
+    quality: string[];
+    broadcaster: string;
+    website?: string | null;
+  }>;
+  directoryEntries: Array<{
+    id: string;
+    name: string;
+    country: string;
+    categories: string[];
+    isNsfw: boolean;
+    network?: string | null;
+    owners: string[];
+    website?: string | null;
+    launched?: string | null;
+    closed?: string | null;
+    logoUrl?: string;
+    streamUrl?: string;
+    streamFormat?: 'hls' | 'youtube' | 'mp4';
+    quality?: string | null;
+    labels?: string[];
+  }>;
+}
+
+let adult18Cache: Adult18CachePayload | null = null;
+let inFlightAdult18Fetch: Promise<Adult18CachePayload> | null = null;
+
+async function fetchJsonWithTimeout<T>(url: string, timeoutMs = 12000): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'FreeTVRadioLive/1.0 (+https://github.com/iptv-org/api)' },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+    return (await res.json()) as T;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function getOrFetchAdult18Catalog(): Promise<Adult18CachePayload> {
+  if (adult18Cache && Date.now() - adult18Cache.timestamp < PLAYLIST_TTL_MS) {
+    return adult18Cache;
+  }
+  if (inFlightAdult18Fetch) {
+    return inFlightAdult18Fetch;
+  }
+
+  inFlightAdult18Fetch = (async () => {
+    const API_CHANNELS = 'https://iptv-org.github.io/api/channels.json';
+    const API_STREAMS = 'https://iptv-org.github.io/api/streams.json';
+    const API_LOGOS = 'https://iptv-org.github.io/api/logos.json';
+    const API_CATEGORIES = 'https://iptv-org.github.io/api/categories.json';
+    const XXX_PLAYLIST = 'https://iptv-org.github.io/iptv/categories/xxx.m3u';
+
+    type RawApiChannel = {
+      id: string;
+      name: string;
+      network?: string | null;
+      owners?: string[];
+      country?: string;
+      categories?: string[];
+      is_nsfw?: boolean;
+      launched?: string | null;
+      closed?: string | null;
+      website?: string | null;
+    };
+    type RawApiStream = {
+      channel?: string | null;
+      title?: string;
+      url?: string;
+      quality?: string | null;
+      labels?: string[];
+    };
+    type RawApiLogo = {
+      channel?: string;
+      url?: string;
+    };
+    type RawApiCategory = {
+      id: string;
+      name: string;
+      description: string;
+    };
+
+    const [channels, streams, logos, categories, xxxPlaylist] = await Promise.all([
+      fetchJsonWithTimeout<RawApiChannel[]>(API_CHANNELS),
+      fetchJsonWithTimeout<RawApiStream[]>(API_STREAMS),
+      fetchJsonWithTimeout<RawApiLogo[]>(API_LOGOS),
+      fetchJsonWithTimeout<RawApiCategory[]>(API_CATEGORIES).catch(() => [] as RawApiCategory[]),
+      getOrFetchPlaylist(XXX_PLAYLIST).catch(() => null),
+    ]);
+
+    const xxxMeta = categories.find(c => c.id === 'xxx') || {
+      id: 'xxx',
+      name: 'XXX',
+      description: 'Programming is adult oriented and x-rated',
+    };
+
+    const nsfwChannels = channels.filter(
+      ch => Boolean(ch.is_nsfw) || (Array.isArray(ch.categories) && ch.categories.includes('xxx'))
+    );
+    const nsfwChannelMap = new Map<string, RawApiChannel>();
+    for (const ch of nsfwChannels) {
+      nsfwChannelMap.set(ch.id, ch);
+    }
+
+    const logoMap = new Map<string, string>();
+    for (const logo of logos) {
+      if (logo.channel && logo.url && !logoMap.has(logo.channel)) {
+        logoMap.set(logo.channel, logo.url);
+      }
+    }
+
+    const streamByChannelId = new Map<string, RawApiStream>();
+    const playableChannels: Adult18CachePayload['playableChannels'] = [];
+    const seenUrls = new Set<string>();
+
+    for (const st of streams) {
+      if (!st.channel || !st.url || !nsfwChannelMap.has(st.channel)) continue;
+      if (seenUrls.has(st.url)) continue;
+      seenUrls.add(st.url);
+
+      if (!streamByChannelId.has(st.channel)) {
+        streamByChannelId.set(st.channel, st);
+      }
+
+      const ch = nsfwChannelMap.get(st.channel)!;
+      const urlLower = st.url.toLowerCase();
+      const format: 'hls' | 'youtube' | 'mp4' =
+        urlLower.includes('youtube.com') || urlLower.includes('youtu.be')
+          ? 'youtube'
+          : urlLower.endsWith('.mp4')
+          ? 'mp4'
+          : 'hls';
+
+      playableChannels.push({
+        id: `adult18-${ch.id.toLowerCase().replace(/[^a-z0-9]/g, '')}-${playableChannels.length + 1}`,
+        name: st.title || ch.name,
+        tvgId: ch.id,
+        tvgLogo: logoMap.get(ch.id) || '',
+        tvgCountry: ch.country || 'INT',
+        groupTitle: '18+ Adult',
+        streamUrl: st.url,
+        streamFormat: format,
+        quality: st.quality ? [st.quality, 'Auto'] : ['Auto'],
+        broadcaster: ch.network || ch.owners?.[0] || ch.name,
+        website: ch.website || null,
+      });
+    }
+
+    if (xxxPlaylist && xxxPlaylist.channels.length > 0) {
+      for (const m3uCh of xxxPlaylist.channels) {
+        if (!m3uCh.streamUrl || seenUrls.has(m3uCh.streamUrl)) continue;
+        seenUrls.add(m3uCh.streamUrl);
+        playableChannels.push({
+          id: `adult18-m3u-${playableChannels.length + 1}`,
+          name: m3uCh.name,
+          tvgId: m3uCh.tvgId,
+          tvgLogo: m3uCh.tvgLogo,
+          tvgCountry: m3uCh.tvgCountry || 'INT',
+          groupTitle: '18+ Adult',
+          streamUrl: m3uCh.streamUrl,
+          streamFormat: m3uCh.streamFormat,
+          quality: ['Auto'],
+          broadcaster: m3uCh.groupTitle || 'IPTV-org XXX',
+          website: null,
+        });
+      }
+    }
+
+    const directoryEntries: Adult18CachePayload['directoryEntries'] = nsfwChannels.map(ch => {
+      const matchedStream = streamByChannelId.get(ch.id);
+      const streamUrl = matchedStream?.url;
+      let streamFormat: 'hls' | 'youtube' | 'mp4' | undefined;
+      if (streamUrl) {
+        streamFormat =
+          streamUrl.includes('youtube.com') || streamUrl.includes('youtu.be')
+            ? 'youtube'
+            : streamUrl.endsWith('.mp4')
+            ? 'mp4'
+            : 'hls';
+      }
+      return {
+        id: ch.id,
+        name: ch.name,
+        country: ch.country || 'INT',
+        categories: Array.isArray(ch.categories) && ch.categories.length > 0 ? ch.categories : ['xxx'],
+        isNsfw: Boolean(ch.is_nsfw),
+        network: ch.network || null,
+        owners: Array.isArray(ch.owners) ? ch.owners : [],
+        website: ch.website || null,
+        launched: ch.launched || null,
+        closed: ch.closed || null,
+        logoUrl: logoMap.get(ch.id),
+        streamUrl,
+        streamFormat,
+        quality: matchedStream?.quality || null,
+        labels: matchedStream?.labels || [],
+      };
+    });
+
+    // Place entries with active streams first in directory listing
+    directoryEntries.sort((a, b) => {
+      const aHas = a.streamUrl ? 0 : 1;
+      const bHas = b.streamUrl ? 0 : 1;
+      if (aHas !== bHas) return aHas - bHas;
+      return a.name.localeCompare(b.name);
+    });
+
+    const payload: Adult18CachePayload = {
+      timestamp: Date.now(),
+      category: xxxMeta,
+      playlistUrl: XXX_PLAYLIST,
+      apiEndpoints: {
+        channels: API_CHANNELS,
+        streams: API_STREAMS,
+        logos: API_LOGOS,
+        categories: API_CATEGORIES,
+      },
+      playableChannels,
+      directoryEntries,
+    };
+
+    adult18Cache = payload;
+    return payload;
+  })();
+
+  try {
+    return await inFlightAdult18Fetch;
+  } finally {
+    inFlightAdult18Fetch = null;
+  }
+}
+
+interface CricketHubCachePayload {
+  timestamp: number;
+  liveStreams: Array<Record<string, unknown>>;
+  replaysAndHighlights: Array<Record<string, unknown>>;
+  matches: Array<Record<string, unknown>>;
+  news: Array<Record<string, unknown>>;
+  sources: {
+    cricomboCount: number;
+    cricketOnAirStreamsCount: number;
+    cricketOnAirReplaysCount: number;
+    matchesCount: number;
+    newsCount: number;
+  };
+}
+
+let cricketHubCache: CricketHubCachePayload | null = null;
+let inFlightCricketHubFetch: Promise<CricketHubCachePayload> | null = null;
+const CRICKET_HUB_TTL_MS = 10 * 60 * 1000;
+
+async function fetchTextWithTimeout(url: string, timeoutMs = 11000): Promise<string> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+        Accept: 'text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8',
+      },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+    return await res.text();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function extractYoutubeId(urlOrId: string): string | null {
+  if (!urlOrId) return null;
+  if (/^[A-Za-z0-9_-]{11}$/.test(urlOrId)) return urlOrId;
+  const m = urlOrId.match(/(?:youtube\.com\/(?:embed\/|watch\?v=|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/i);
+  return m ? m[1] : null;
+}
+
+function parseCricomboLiveStreams(html: string): Array<Record<string, unknown>> {
+  const results: Array<Record<string, unknown>> = [];
+  const seenYt = new Set<string>();
+  const ldRegex = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let match: RegExpExecArray | null;
+
+  const collectVideoObjects = (node: unknown) => {
+    if (!node || typeof node !== 'object') return;
+    if (Array.isArray(node)) {
+      node.forEach(collectVideoObjects);
+      return;
+    }
+    const obj = node as Record<string, unknown>;
+    if (obj['@type'] === 'VideoObject') {
+      const embedUrl = String(obj.embedUrl || obj.contentUrl || '');
+      const ytId = extractYoutubeId(embedUrl);
+      if (ytId && !seenYt.has(ytId)) {
+        seenYt.add(ytId);
+        const pub = (obj.publication as Record<string, unknown> | undefined) || {};
+        const thumbArr = Array.isArray(obj.thumbnailUrl) ? obj.thumbnailUrl : [obj.thumbnailUrl];
+        const rawTitle = decodeXmlEntities(String(obj.name || 'Live Cricket Stream'));
+        const rawDesc = decodeXmlEntities(String(obj.description || 'Official live cricket stream via Cricombo.'));
+        const channelMatch = rawDesc.match(/official live stream by ([^.]+)/i);
+        const broadcaster = channelMatch ? channelMatch[1].trim() : 'Cricombo Official';
+        const isLive = Boolean(pub.isLiveBroadcast);
+
+        results.push({
+          id: `cricombo-${ytId}`,
+          youtubeId: ytId,
+          name: rawTitle,
+          type: 'tv',
+          category: 'Cricket',
+          language: 'English',
+          country: 'International',
+          streamUrl: `https://www.youtube.com/watch?v=${ytId}`,
+          streamFormat: 'youtube',
+          logoUrl: String(thumbArr[0] || `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`),
+          description: `${rawDesc}${obj.url ? ` · Source: ${obj.url}` : ''}`,
+          currentProgram: isLive
+            ? `LIVE · ${broadcaster}`
+            : `Cricket Replay · ${broadcaster}`,
+          quality: ['HD', 'Auto'],
+          broadcaster,
+          verifiedFta: true,
+          isLive,
+          tags: ['cricombo', 'cricket', isLive ? 'live' : 'replay'],
+          sourcePlatform: 'Cricombo',
+          externalUrl: String(obj.url || 'https://cricombo.com/live-streams'),
+          startDate: pub.startDate ? String(pub.startDate) : (obj.uploadDate ? String(obj.uploadDate) : undefined),
+        });
+      }
+    }
+    if (Array.isArray(obj.hasPart)) collectVideoObjects(obj.hasPart);
+    if (Array.isArray(obj['@graph'])) collectVideoObjects(obj['@graph']);
+  };
+
+  while ((match = ldRegex.exec(html)) !== null) {
+    try {
+      const parsed = JSON.parse(match[1]);
+      collectVideoObjects(parsed);
+    } catch {
+      // ignore malformed JSON-LD block
+    }
+  }
+
+  return results;
+}
+
+async function getOrFetchCricketHub(forceRefresh = false): Promise<CricketHubCachePayload> {
+  if (!forceRefresh && cricketHubCache && Date.now() - cricketHubCache.timestamp < CRICKET_HUB_TTL_MS) {
+    return cricketHubCache;
+  }
+  if (!forceRefresh && inFlightCricketHubFetch) {
+    return inFlightCricketHubFetch;
+  }
+
+  inFlightCricketHubFetch = (async () => {
+    const [
+      cricomboHtml,
+      coaStreamsJson,
+      coaFeaturedJson,
+      coaMatchesJson,
+      coaNewsJson,
+      coaFreeHtml,
+    ] = await Promise.all([
+      fetchTextWithTimeout('https://cricombo.com/live-streams', 11000).catch(() => ''),
+      fetchJsonWithTimeout<{
+        streams?: Array<Record<string, unknown>>;
+        replays?: Array<Record<string, unknown>>;
+      }>('https://cricketonair.com/data/live_streams.json', 10000).catch(() => ({ streams: [], replays: [] })),
+      fetchJsonWithTimeout<{
+        videos?: Array<Record<string, unknown>>;
+      }>('https://cricketonair.com/data/featured.json', 10000).catch(() => ({ videos: [] })),
+      fetchJsonWithTimeout<{
+        matches?: Array<Record<string, unknown>>;
+      }>('https://cricketonair.com/data/matches.json', 10000).catch(() => ({ matches: [] })),
+      fetchJsonWithTimeout<{
+        articles?: Array<Record<string, unknown>>;
+        items?: Array<Record<string, unknown>>;
+      } | Array<Record<string, unknown>>>('https://cricketonair.com/data/news.json', 10000).catch(() => []),
+      fetchTextWithTimeout('https://cricketonair.com/free-live-cricket', 9000).catch(() => ''),
+    ]);
+
+    const cricomboStreams = cricomboHtml ? parseCricomboLiveStreams(cricomboHtml) : [];
+
+    const liveStreams: Array<Record<string, unknown>> = [];
+    const replaysAndHighlights: Array<Record<string, unknown>> = [];
+    const seenStreamYtIds = new Set<string>();
+    const seenReplayYtIds = new Set<string>();
+
+    // 1. Add Cricombo live streams first (live broadcasts to liveStreams, replays to replaysAndHighlights)
+    for (const item of cricomboStreams) {
+      const ytId = String(item.youtubeId || '');
+      if (item.isLive) {
+        if (!seenStreamYtIds.has(ytId)) {
+          seenStreamYtIds.add(ytId);
+          liveStreams.push(item);
+        }
+      } else if (!seenReplayYtIds.has(ytId)) {
+        seenReplayYtIds.add(ytId);
+        replaysAndHighlights.push(item);
+      }
+    }
+
+    // 2. Add Cricket On Air live & upcoming streams
+    let coaStreamsCount = 0;
+    const rawCoaStreams = Array.isArray(coaStreamsJson?.streams) ? coaStreamsJson.streams : [];
+    for (const s of rawCoaStreams) {
+      const ytId = extractYoutubeId(String(s.video || ''));
+      if (!ytId) continue;
+      coaStreamsCount++;
+      if (seenStreamYtIds.has(ytId)) continue;
+      seenStreamYtIds.add(ytId);
+      const state = String(s.state || 'live').toLowerCase();
+      const isLive = state === 'live' || (!s.ended && Boolean(s.started));
+      const broadcaster = String(s.channel || 'Cricket On Air Official');
+      const blockedList = Array.isArray(s.blocked) ? (s.blocked as string[]) : [];
+      liveStreams.push({
+        id: `coa-live-${ytId}`,
+        youtubeId: ytId,
+        name: decodeXmlEntities(String(s.title || 'Live Cricket Broadcast')),
+        type: 'tv',
+        category: 'Cricket',
+        language: 'English',
+        country: broadcaster,
+        streamUrl: `https://www.youtube.com/watch?v=${ytId}`,
+        streamFormat: 'youtube',
+        logoUrl: `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`,
+        description: `Official free cricket stream by ${broadcaster} (${s.handle || 'YouTube'})${
+          blockedList.length > 0 ? ` · Geo-restricted in ${blockedList.length} territories` : ''
+        }`,
+        currentProgram: state === 'upcoming'
+          ? `Upcoming · ${s.scheduled ? new Date(String(s.scheduled)).toUTCString().slice(0, 22) : broadcaster}`
+          : `LIVE · ${broadcaster}`,
+        quality: ['HD', 'Auto'],
+        broadcaster,
+        verifiedFta: true,
+        isLive,
+        isGeoBlocked: blockedList.length > 0,
+        tags: ['cricketonair', 'cricket', state],
+        sourcePlatform: 'Cricket On Air',
+        externalUrl: String(s.channelUrl || 'https://cricketonair.com/free-live-cricket'),
+        startDate: s.scheduled ? String(s.scheduled) : (s.started ? String(s.started) : undefined),
+      });
+    }
+
+    // 3. Add Cricket On Air replays & featured official highlights
+    let coaReplaysCount = 0;
+    const rawCoaReplays = Array.isArray(coaStreamsJson?.replays) ? coaStreamsJson.replays : [];
+    for (const r of rawCoaReplays) {
+      const ytId = extractYoutubeId(String(r.video || ''));
+      if (!ytId) continue;
+      coaReplaysCount++;
+      if (seenReplayYtIds.has(ytId) || seenStreamYtIds.has(ytId)) continue;
+      seenReplayYtIds.add(ytId);
+      const broadcaster = String(r.channel || 'Official Cricket Board');
+      replaysAndHighlights.push({
+        id: `coa-replay-${ytId}`,
+        youtubeId: ytId,
+        name: decodeXmlEntities(String(r.title || 'Cricket Match Replay')),
+        type: 'tv',
+        category: 'Cricket',
+        language: 'English',
+        country: broadcaster,
+        streamUrl: `https://www.youtube.com/watch?v=${ytId}`,
+        streamFormat: 'youtube',
+        logoUrl: `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`,
+        description: `Official match replay by ${broadcaster} via Cricket On Air`,
+        currentProgram: `Match Replay · ${broadcaster}`,
+        quality: ['HD', 'Auto'],
+        broadcaster,
+        verifiedFta: true,
+        isLive: false,
+        tags: ['cricketonair', 'replay', 'cricket'],
+        sourcePlatform: 'Cricket On Air',
+        externalUrl: String(r.channelUrl || 'https://cricketonair.com/free-live-cricket'),
+        startDate: r.started ? String(r.started) : undefined,
+      });
+    }
+
+    const rawCoaFeatured = Array.isArray(coaFeaturedJson?.videos) ? coaFeaturedJson.videos : [];
+    for (const v of rawCoaFeatured) {
+      const ytId = extractYoutubeId(String(v.video || ''));
+      if (!ytId) continue;
+      coaReplaysCount++;
+      if (seenReplayYtIds.has(ytId) || seenStreamYtIds.has(ytId)) continue;
+      seenReplayYtIds.add(ytId);
+      const broadcaster = String(v.channel || 'Official Broadcaster').trim();
+      replaysAndHighlights.push({
+        id: `coa-feat-${ytId}`,
+        youtubeId: ytId,
+        name: decodeXmlEntities(String(v.title || 'Featured Cricket Highlights')),
+        type: 'tv',
+        category: 'Cricket',
+        language: 'English',
+        country: 'International',
+        streamUrl: `https://www.youtube.com/watch?v=${ytId}`,
+        streamFormat: 'youtube',
+        logoUrl: `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`,
+        description: `Featured official highlights by ${broadcaster} via Cricket On Air`,
+        currentProgram: `Official Highlights · ${broadcaster}`,
+        quality: ['HD', 'Auto'],
+        broadcaster,
+        verifiedFta: true,
+        isLive: false,
+        tags: ['cricketonair', 'highlights', 'cricket'],
+        sourcePlatform: 'Cricket On Air',
+        externalUrl: String(v.channelUrl || 'https://cricketonair.com/free-live-cricket'),
+        startDate: v.published ? String(v.published) : undefined,
+      });
+    }
+
+    // Also parse featured tiles from free-live-cricket HTML if featured.json returned empty
+    if (rawCoaFeatured.length === 0 && coaFreeHtml) {
+      const tileRegex = /<article[^>]*class="[^"]*fs-tile[^"]*"[^>]*>[\s\S]*?data-src="([^"]+)"[\s\S]*?<h3>([\s\S]*?)<\/h3>[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/gi;
+      let tm: RegExpExecArray | null;
+      while ((tm = tileRegex.exec(coaFreeHtml)) !== null) {
+        const ytId = extractYoutubeId(tm[1]);
+        if (!ytId || seenReplayYtIds.has(ytId)) continue;
+        seenReplayYtIds.add(ytId);
+        coaReplaysCount++;
+        const title = decodeXmlEntities(tm[2].replace(/<[^>]+>/g, ''));
+        const meta = decodeXmlEntities(tm[3].replace(/<[^>]+>/g, ''));
+        replaysAndHighlights.push({
+          id: `coa-tile-${ytId}`,
+          youtubeId: ytId,
+          name: title,
+          type: 'tv',
+          category: 'Cricket',
+          language: 'English',
+          country: 'International',
+          streamUrl: `https://www.youtube.com/watch?v=${ytId}`,
+          streamFormat: 'youtube',
+          logoUrl: `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`,
+          description: `${meta} · Free Live Cricket Official Channel`,
+          currentProgram: meta,
+          quality: ['HD', 'Auto'],
+          broadcaster: meta.split('·')[0]?.trim() || 'Official Channel',
+          verifiedFta: true,
+          isLive: false,
+          tags: ['cricketonair', 'highlights', 'cricket'],
+          sourcePlatform: 'Cricket On Air',
+          externalUrl: 'https://cricketonair.com/free-live-cricket',
+        });
+      }
+    }
+
+    // 4. Parse upcoming/current cricket matches
+    const rawMatches = Array.isArray(coaMatchesJson?.matches) ? coaMatchesJson.matches : [];
+    const matches = rawMatches.slice(0, 80).map(m => {
+      const tournament = (m.tournament as Record<string, unknown> | undefined) || {};
+      const slug = String(m.slug || m.id || '');
+      const teamA = String(m.a || 'TBA');
+      const teamB = String(m.b || 'TBA');
+      return {
+        id: String(m.id || slug),
+        title: `${teamA} vs ${teamB}`,
+        teamA,
+        teamB,
+        codes: Array.isArray(m.codes) ? (m.codes as string[]) : [],
+        format: String(m.format || 'Match'),
+        round: String(m.round || ''),
+        start: String(m.start || ''),
+        venue: String(m.venue || 'TBA'),
+        tournamentName: String(tournament.name || m.series || 'Cricket Fixture'),
+        slug,
+        watchUrl: slug ? `https://cricketonair.com/match/${slug}/` : 'https://cricketonair.com/',
+      };
+    });
+
+    // 5. Parse latest cricket news
+    const rawNewsArr = Array.isArray(coaNewsJson)
+      ? coaNewsJson
+      : Array.isArray((coaNewsJson as Record<string, unknown>)?.articles)
+      ? ((coaNewsJson as Record<string, unknown>).articles as Array<Record<string, unknown>>)
+      : Array.isArray((coaNewsJson as Record<string, unknown>)?.items)
+      ? ((coaNewsJson as Record<string, unknown>).items as Array<Record<string, unknown>>)
+      : [];
+
+    const news = rawNewsArr.slice(0, 30).map(n => ({
+      title: decodeXmlEntities(String(n.title || '')),
+      url: String(n.url || 'https://cricketonair.com/'),
+      source: String(n.source || 'Cricket News'),
+      image: n.image ? String(n.image) : undefined,
+      published: String(n.published || ''),
+    })).filter(n => n.title);
+
+    const payload: CricketHubCachePayload = {
+      timestamp: Date.now(),
+      liveStreams,
+      replaysAndHighlights: replaysAndHighlights.slice(0, 60),
+      matches,
+      news,
+      sources: {
+        cricomboCount: cricomboStreams.length,
+        cricketOnAirStreamsCount: coaStreamsCount,
+        cricketOnAirReplaysCount: coaReplaysCount,
+        matchesCount: matches.length,
+        newsCount: news.length,
+      },
+    };
+
+    cricketHubCache = payload;
+    return payload;
+  })();
+
+  try {
+    return await inFlightCricketHubFetch;
+  } finally {
+    inFlightCricketHubFetch = null;
+  }
+}
+
+interface PublicIptvDirectoryCachePayload {
+  timestamp: number;
+  footballCricket: {
+    repoUrl: string;
+    playlistUrl: string;
+    worldCupPlaylistUrl: string;
+    channels: ParsedPlaylistChannel[];
+    directoryRows: Array<{
+      region: string;
+      country: string;
+      tvChannels: string;
+      ottPlatforms: string;
+      broadcastType: string;
+      iptvStatus: string;
+      hasPublicIptv: boolean;
+    }>;
+  };
+  freePublicIptv: {
+    repoUrl: string;
+    presets: Array<{ id: string; label: string; url: string }>;
+    channels: ParsedPlaylistChannel[];
+  };
+  iptvOrgDatabase: {
+    repoUrl: string;
+    masterPlaylistUrl: string;
+    categoryMasterUrl: string;
+    categories: Array<{ name: string; channelCount: number; playlistUrl: string }>;
+  };
+  playlistDocs: {
+    docUrl: string;
+    title: string;
+    summary: string;
+    internalRules: string[];
+    internalExample: string;
+    publicExample: string;
+    rawExcerpt: string;
+  };
+}
+
+let publicIptvDirectoryCache: PublicIptvDirectoryCachePayload | null = null;
+let inFlightPublicIptvDirectoryFetch: Promise<PublicIptvDirectoryCachePayload> | null = null;
+
+function stripMarkdownBold(text: string): string {
+  return text.replace(/\*\*(.*?)\*\*/g, '$1').replace(/`([^`]*)`/g, '$1').trim();
+}
+
+function parseFootballCricketReadme(markdown: string) {
+  const rows: PublicIptvDirectoryCachePayload['footballCricket']['directoryRows'] = [];
+  if (!markdown) return rows;
+
+  let currentRegion = 'Global Broadcasters';
+  const lines = markdown.split(/\r?\n/);
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (line.startsWith('### ')) {
+      currentRegion = line.replace(/^###\s+/, '').trim();
+      continue;
+    }
+    if (!line.startsWith('|')) continue;
+    if (line.includes('| Country') || line.includes('|---')) continue;
+
+    const cells = line
+      .split('|')
+      .slice(1, -1)
+      .map(c => stripMarkdownBold(c));
+
+    if (cells.length >= 5) {
+      const [country, tvChannels, ottPlatforms, broadcastType, iptvStatus] = cells;
+      if (!country || country.toLowerCase().includes('country')) continue;
+      rows.push({
+        region: currentRegion,
+        country,
+        tvChannels,
+        ottPlatforms,
+        broadcastType,
+        iptvStatus,
+        hasPublicIptv: iptvStatus.includes('✅'),
+      });
+    }
+  }
+
+  return rows;
+}
+
+function parseIptvOrgPlaylistsMarkdown(markdown: string) {
+  const categories: Array<{ name: string; channelCount: number; playlistUrl: string }> = [];
+  if (!markdown) return categories;
+
+  const rowRegex =
+    /<tr>\s*<td>([^<]+)<\/td>\s*<td[^>]*>(\d+)<\/td>\s*<td[^>]*><code>(https:\/\/iptv-org\.github\.io\/iptv\/categories\/[^<]+\.m3u)<\/code><\/td>\s*<\/tr>/gi;
+  let match: RegExpExecArray | null;
+  const seen = new Set<string>();
+
+  while ((match = rowRegex.exec(markdown)) !== null) {
+    const name = decodeXmlEntities(match[1].trim());
+    const channelCount = Number(match[2]) || 0;
+    const playlistUrl = match[3].trim();
+    if (!seen.has(playlistUrl)) {
+      seen.add(playlistUrl);
+      categories.push({ name, channelCount, playlistUrl });
+    }
+  }
+
+  return categories;
+}
+
+function parsePlaylistDocsMarkdown(markdown: string) {
+  const rules: string[] = [];
+  const lines = (markdown || '').split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('- ')) {
+      const cleaned = trimmed
+        .slice(2)
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+        .replace(/`/g, '')
+        .trim();
+      if (cleaned) rules.push(cleaned);
+    }
+  }
+
+  const codeBlocks: string[] = [];
+  const blockRegex = /```[\s\S]*?\n([\s\S]*?)```/g;
+  let bMatch: RegExpExecArray | null;
+  while ((bMatch = blockRegex.exec(markdown || '')) !== null) {
+    const content = bMatch[1].trim();
+    if (content) codeBlocks.push(content);
+  }
+
+  const internalExample =
+    codeBlocks.find(b => b.includes('#EXTM3U') && !b.includes('group-title=')) ||
+    '#EXTM3U\n#EXTINF:-1 tvg-id="ExampleTV.us@SD",Example TV (720p)\nhttps://example.com/playlist.m3u8';
+
+  const publicExample =
+    codeBlocks.find(b => b.includes('group-title=')) ||
+    '#EXTM3U x-tvg-url="https://example.com/guide.xml"\n#EXTINF:-1 tvg-id="ExampleTV.us@SD" tvg-logo="https://example.com/logo.png" group-title="Movies",Example TV (720p)\nhttps://example.com/playlist.m3u8';
+
+  return {
+    docUrl: 'https://github.com/iptv-org/iptv/blob/master/docs/playlists.md',
+    title: 'IPTV-org Playlist Organization & M3U Format',
+    summary:
+      'Defines Internal moderation playlists (streams/) and daily generated Public playlists (index.m3u, category/country feeds) using UTF-8 CRLF #EXTM3U and #EXTINF metadata.',
+    internalRules:
+      rules.length > 0
+        ? rules
+        : [
+            'All files must have the .m3u extension',
+            'The playlist must begin with the header #EXTM3U',
+            'Each link must comply with the Stream Description Scheme',
+            'Lines must end with CRLF',
+            'The file encoding must be UTF-8 without BOM',
+          ],
+    internalExample,
+    publicExample,
+    rawExcerpt: (markdown || '').slice(0, 2800),
+  };
+}
+
+async function getOrFetchPublicIptvDirectory(forceRefresh = false): Promise<PublicIptvDirectoryCachePayload> {
+  if (!forceRefresh && publicIptvDirectoryCache && Date.now() - publicIptvDirectoryCache.timestamp < PLAYLIST_TTL_MS) {
+    return publicIptvDirectoryCache;
+  }
+  if (!forceRefresh && inFlightPublicIptvDirectoryFetch) {
+    return inFlightPublicIptvDirectoryFetch;
+  }
+
+  const FC_INDEX_URL = 'https://raw.githubusercontent.com/subash9860/iptv-football-cricket/main/index.m3u';
+  const FC_WC_URL = 'https://raw.githubusercontent.com/subash9860/iptv-football-cricket/main/worldcup-2026.m3u';
+  const FC_README_URL = 'https://raw.githubusercontent.com/subash9860/iptv-football-cricket/main/README.md';
+  const FREE_ALL_URL = 'https://raw.githubusercontent.com/freecasthub/public-iptv/main/playlist.m3u';
+  const IPTV_ORG_PLAYLISTS_MD = 'https://raw.githubusercontent.com/iptv-org/iptv/master/PLAYLISTS.md';
+  const IPTV_ORG_DOCS_MD = 'https://raw.githubusercontent.com/iptv-org/iptv/master/docs/playlists.md';
+
+  inFlightPublicIptvDirectoryFetch = (async () => {
+    const [fcPlaylist, fcReadme, freePlaylist, iptvOrgPlaylistsMd, iptvOrgDocsMd] = await Promise.all([
+      getOrFetchPlaylist(FC_INDEX_URL).catch(() => null),
+      fetchTextWithTimeout(FC_README_URL, 10000).catch(() => ''),
+      getOrFetchPlaylist(FREE_ALL_URL).catch(() => null),
+      fetchTextWithTimeout(IPTV_ORG_PLAYLISTS_MD, 11000).catch(() => ''),
+      fetchTextWithTimeout(IPTV_ORG_DOCS_MD, 10000).catch(() => ''),
+    ]);
+
+    const directoryRows = parseFootballCricketReadme(fcReadme);
+    const categories = parseIptvOrgPlaylistsMarkdown(iptvOrgPlaylistsMd);
+    const playlistDocs = parsePlaylistDocsMarkdown(iptvOrgDocsMd);
+
+    const payload: PublicIptvDirectoryCachePayload = {
+      timestamp: Date.now(),
+      footballCricket: {
+        repoUrl: 'https://github.com/subash9860/iptv-football-cricket',
+        playlistUrl: FC_INDEX_URL,
+        worldCupPlaylistUrl: FC_WC_URL,
+        channels: fcPlaylist?.channels || [],
+        directoryRows,
+      },
+      freePublicIptv: {
+        repoUrl: 'https://github.com/freecasthub/public-iptv',
+        presets: [
+          { id: 'all', label: 'All Public Broadcasters', url: FREE_ALL_URL },
+          { id: 'news', label: 'News', url: 'https://raw.githubusercontent.com/freecasthub/public-iptv/main/news.m3u' },
+          { id: 'sports', label: 'Sports', url: 'https://raw.githubusercontent.com/freecasthub/public-iptv/main/sports.m3u' },
+          { id: 'weather', label: 'Weather', url: 'https://raw.githubusercontent.com/freecasthub/public-iptv/main/weather.m3u' },
+          { id: 'education', label: 'Education', url: 'https://raw.githubusercontent.com/freecasthub/public-iptv/main/education.m3u' },
+        ],
+        channels: freePlaylist?.channels || [],
+      },
+      iptvOrgDatabase: {
+        repoUrl: 'https://github.com/iptv-org/iptv',
+        masterPlaylistUrl: 'https://iptv-org.github.io/iptv/index.m3u',
+        categoryMasterUrl: 'https://iptv-org.github.io/iptv/index.category.m3u',
+        categories,
+      },
+      playlistDocs,
+    };
+
+    publicIptvDirectoryCache = payload;
+    return payload;
+  })();
+
+  try {
+    return await inFlightPublicIptvDirectoryFetch;
+  } finally {
+    inFlightPublicIptvDirectoryFetch = null;
+  }
+}
+
 function decodeXmlEntities(str: string): string {
   if (!str) return '';
   return str
@@ -145,11 +1003,13 @@ function parseM3uPlaylist(rawText: string, sourceUrl: string): PlaylistCacheEntr
       const rawTitle = commaIdx !== -1 ? line.substring(commaIdx + 1).trim() : 'Live Channel';
 
       const isYouTube = rawTitle.includes('Ⓨ');
-      const isGeoBlocked = rawTitle.includes('Ⓖ');
+      const isGeoBlocked = rawTitle.includes('Ⓖ') || /\[geo-blocked\]/i.test(rawTitle);
       const isTwitch = rawTitle.includes('Ⓣ');
 
       const cleanTitle = rawTitle
         .replace(/[ⓎⒼⓈⓉⓍ]/g, '')
+        .replace(/\[.*?\]/g, '')
+        .replace(/\(\d+p\)/gi, '')
         .replace(/\s+/g, ' ')
         .trim();
 
@@ -503,6 +1363,69 @@ async function startServer() {
     }
   });
 
+  // 1b. Separate 18+ / NSFW (XXX) Category Endpoint via iptv-org API + playlists
+  app.get('/api/iptv/adult18', async (_req: Request, res: Response) => {
+    try {
+      const data = await getOrFetchAdult18Catalog();
+      res.json({
+        category: data.category,
+        playlistUrl: data.playlistUrl,
+        apiEndpoints: data.apiEndpoints,
+        playableChannels: data.playableChannels,
+        directoryEntries: data.directoryEntries,
+        totalDirectoryCount: data.directoryEntries.length,
+        totalPlayableCount: data.playableChannels.length,
+        cachedAt: new Date(data.timestamp).toISOString(),
+      });
+    } catch (err) {
+      res.status(502).json({
+        error: 'Unable to load iptv-org 18+ / NSFW catalog',
+        details: (err as Error).message,
+      });
+    }
+  });
+
+  // 1c. Cricket Hub Aggregator Endpoint (Cricombo + Cricket On Air)
+  app.get('/api/cricket/hub', async (req: Request, res: Response) => {
+    try {
+      const forceRefresh = req.query.refresh === '1' || req.query.refresh === 'true';
+      const data = await getOrFetchCricketHub(forceRefresh);
+      res.json({
+        liveStreams: data.liveStreams,
+        replaysAndHighlights: data.replaysAndHighlights,
+        matches: data.matches,
+        news: data.news,
+        sources: data.sources,
+        fetchedAt: new Date(data.timestamp).toISOString(),
+      });
+    } catch (err) {
+      res.status(502).json({
+        error: 'Unable to fetch Cricket Hub feeds',
+        details: (err as Error).message,
+      });
+    }
+  });
+
+  // 1d. Separate Public IPTV Repositories & Broadcaster Directory Endpoint
+  app.get('/api/iptv/public-directory', async (req: Request, res: Response) => {
+    try {
+      const forceRefresh = req.query.refresh === '1' || req.query.refresh === 'true';
+      const data = await getOrFetchPublicIptvDirectory(forceRefresh);
+      res.json({
+        footballCricket: data.footballCricket,
+        freePublicIptv: data.freePublicIptv,
+        iptvOrgDatabase: data.iptvOrgDatabase,
+        playlistDocs: data.playlistDocs,
+        fetchedAt: new Date(data.timestamp).toISOString(),
+      });
+    } catch (err) {
+      res.status(502).json({
+        error: 'Unable to fetch Public IPTV directory sources',
+        details: (err as Error).message,
+      });
+    }
+  });
+
   // 2. Electronic Program Guide (EPG) Fetcher Endpoint linked to IPTV Playlist
   app.post('/api/epg/fetch', async (req: Request, res: Response) => {
     try {
@@ -543,6 +1466,7 @@ async function startServer() {
       const normalizeBase = (s: string) =>
         s
           .toLowerCase()
+          .replace(/@(uhd|fhd|hd|sd|4k)$/i, '')
           .replace(/\.[a-z0-9]{2,4}$/i, '')
           .replace(/[^a-z0-9+]/g, '')
           .replace(/(uhd|fhd|hd|sd|4k)$/i, '');

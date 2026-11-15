@@ -18,7 +18,7 @@ import { ALL_CATEGORIES, ALL_LANGUAGES, ALL_COUNTRIES } from '../../data/initial
 import { MediaType } from '../../types';
 
 export const SearchSection: React.FC = () => {
-  const { channels, searchQuery, setSearchQuery } = useApp();
+  const { channels, sportsIptvChannels, searchQuery, setSearchQuery } = useApp();
   const [selectedType, setSelectedType] = useState<MediaType | 'all'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedLanguage, setSelectedLanguage] = useState<string>('All');
@@ -41,7 +41,12 @@ export const SearchSection: React.FC = () => {
   ];
 
   const filteredResults = useMemo(() => {
-    return channels.filter(channel => {
+    const seenUrls = new Set(channels.map(c => c.streamUrl));
+    const searchableChannels = [
+      ...channels,
+      ...sportsIptvChannels.filter(s => !seenUrls.has(s.streamUrl)),
+    ];
+    return searchableChannels.filter(channel => {
       // 1. Media Type Filter (TV station vs Radio station)
       if (selectedType !== 'all' && channel.type !== selectedType) return false;
 
@@ -83,7 +88,7 @@ export const SearchSection: React.FC = () => {
 
       return true;
     });
-  }, [channels, selectedType, selectedCategory, selectedLanguage, selectedCountry, onlyWorking, onlyHD, searchQuery]);
+  }, [channels, sportsIptvChannels, selectedType, selectedCategory, selectedLanguage, selectedCountry, onlyWorking, onlyHD, searchQuery]);
 
   const clearAll = () => {
     setSearchQuery('');

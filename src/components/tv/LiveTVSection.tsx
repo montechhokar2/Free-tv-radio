@@ -14,7 +14,8 @@ import {
   Layers,
   RefreshCw,
   CalendarClock,
-  ListVideo
+  ListVideo,
+  Trophy
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { VideoPlayer } from '../player/VideoPlayer';
@@ -41,7 +42,10 @@ export const LiveTVSection: React.FC = () => {
     epgProgramsByChannelId,
     loadEpgForChannels,
     isLoadingEpg,
-    iptvChannels
+    iptvChannels,
+    sportsIptvChannels,
+    isLoadingSportsIptv,
+    syncSportsIptv
   } = useApp();
 
   const [tvSearch, setTvSearch] = useState('');
@@ -50,9 +54,14 @@ export const LiveTVSection: React.FC = () => {
 
   // Filter TV channels across 20 standard TV categories, language, country and search query
   const tvChannels = useMemo(() => {
-    return channels.filter(channel => {
-      if (channel.type !== 'tv') return false;
+    const baseTv = channels.filter(c => c.type === 'tv');
+    const seenUrls = new Set(baseTv.map(c => c.streamUrl));
+    const combinedTv = [
+      ...baseTv,
+      ...sportsIptvChannels.filter(s => !seenUrls.has(s.streamUrl)),
+    ];
 
+    return combinedTv.filter(channel => {
       // Category filter
       if (selectedCategory !== 'All') {
         const cat = channel.category.toLowerCase();
@@ -80,7 +89,7 @@ export const LiveTVSection: React.FC = () => {
 
       return true;
     });
-  }, [channels, selectedCategory, selectedLanguage, selectedCountry, tvSearch]);
+  }, [channels, sportsIptvChannels, selectedCategory, selectedLanguage, selectedCountry, tvSearch]);
 
   const clearFilters = () => {
     setSelectedCategory('All');
@@ -131,6 +140,14 @@ export const LiveTVSection: React.FC = () => {
           {/* Actions: IPTV Playlist & EPG, Sync EPG, Country Directory & Search */}
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <button
+              onClick={() => setCurrentTab('cricket')}
+              className="px-3.5 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/35 text-emerald-300 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap shrink-0"
+            >
+              <Trophy className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Cricket Hub</span>
+            </button>
+
+            <button
               onClick={() => setCurrentTab('iptv')}
               className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap shrink-0 shadow-sm shadow-amber-500/20"
             >
@@ -145,6 +162,15 @@ export const LiveTVSection: React.FC = () => {
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoadingEpg ? 'animate-spin' : ''}`} />
               <span>{isLoadingEpg ? 'Syncing EPG...' : 'Sync EPG'}</span>
+            </button>
+
+            <button
+              onClick={() => void syncSportsIptv()}
+              disabled={isLoadingSportsIptv}
+              className="px-3 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-50"
+            >
+              <Activity className={`w-3.5 h-3.5 ${isLoadingSportsIptv ? 'animate-spin' : ''}`} />
+              <span>{isLoadingSportsIptv ? 'Syncing Sports...' : `Sports M3U (${sportsIptvChannels.length})`}</span>
             </button>
 
             <button

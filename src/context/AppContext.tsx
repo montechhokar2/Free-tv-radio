@@ -6,11 +6,20 @@ import {
   ParentalControlConfig, 
   MonetizationConfig, 
   CountryDirectoryItem,
-  EpgProgram
+  EpgProgram,
+  Adult18DirectoryEntry,
+  CricketHubResponse,
+  PublicIptvDirectoryResponse
 } from '../types';
 import { INITIAL_CHANNELS } from '../data/initialChannels';
-import { fetchTopRadioStations, fetchRadioByCountry, fetchRadioByTag } from '../services/radioBrowserService';
-import { fetchChannelsByCountry, WORLD_COUNTRIES } from '../services/iptvOrgService';
+import { fetchTopRadioStations, fetchRadioByTag } from '../services/radioBrowserService';
+import {
+  fetchChannelsByCountry,
+  fetchIptvOrgSportsChannels,
+  fetchAdult18Catalog,
+  fetchAdult18CustomPlaylist,
+  WORLD_COUNTRIES
+} from '../services/iptvOrgService';
 import {
   DEFAULT_FREE_TV_PLAYLIST_URL,
   fetchIptvPlaylist,
@@ -18,15 +27,20 @@ import {
   fetchSingleEpgSource,
   findEpgProgramsForChannel
 } from '../services/epgService';
+import { fetchCricketHub, fetchCricketRadioStations } from '../services/cricketHubService';
+import { fetchPublicIptvDirectory } from '../services/publicIptvService';
 
 export type AppTab = 
   | 'home' 
   | 'tv' 
+  | 'cricket'
   | 'iptv'
+  | 'public_iptv'
   | 'radio' 
   | 'countries' 
   | 'dictionary' 
   | 'ott' 
+  | 'adult18'
   | 'favorites' 
   | 'search' 
   | 'admin';
@@ -97,6 +111,38 @@ interface AppContextType {
   liveRadioStations: Channel[];
   isLoadingLiveRadio: boolean;
   syncRadioBrowser: (tagOrGenre?: string) => Promise<void>;
+
+  // IPTV-org Sports Category Feed (categories/sports.m3u)
+  sportsIptvChannels: Channel[];
+  isLoadingSportsIptv: boolean;
+  syncSportsIptv: () => Promise<void>;
+
+  // Isolated 18+ Adult / XXX Category (iptv-org API + M3U)
+  isAdult18Unlocked: boolean;
+  unlockAdult18: (pin?: string) => boolean;
+  lockAdult18: () => void;
+  adult18Channels: Channel[];
+  adult18Directory: Adult18DirectoryEntry[];
+  isLoadingAdult18: boolean;
+  adult18Error: string | null;
+  adult18CustomPlaylistUrl: string;
+  syncAdult18Catalog: (forceRefresh?: boolean) => Promise<void>;
+  loadCustomAdult18M3u: (m3uUrl: string) => Promise<number>;
+
+  // Cricket Hub Module (Cricombo + Cricket On Air + Cricket Radio)
+  cricketHubData: CricketHubResponse | null;
+  cricketRadioStations: Channel[];
+  isLoadingCricketHub: boolean;
+  cricketHubError: string | null;
+  loadCricketHub: (forceRefresh?: boolean) => Promise<void>;
+
+  // Separate Open IPTV Sources Category (Football/Cricket + IPTV-org + Free Public IPTV + M3U Docs)
+  publicIptvDirectory: PublicIptvDirectoryResponse | null;
+  isLoadingPublicIptv: boolean;
+  publicIptvError: string | null;
+  loadPublicIptvDirectory: (forceRefresh?: boolean) => Promise<void>;
+  publicIptvActiveStreams: Channel[];
+  setPublicIptvActiveStreams: (channels: Channel[]) => void;
 
   // IPTV Playlist & Electronic Program Guide (EPG) Fetcher
   iptvPlaylistUrl: string;
@@ -237,6 +283,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [liveRadioStations, setLiveRadioStations] = useState<Channel[]>([]);
   const [isLoadingLiveRadio, setIsLoadingLiveRadio] = useState<boolean>(false);
 
+  // 7b. IPTV-org Sports M3U Playlist State
+  const [sportsIptvChannels, setSportsIptvChannels] = useState<Channel[]>([]);
+  const [isLoadingSportsIptv, setIsLoadingSportsIptv] = useState<boolean>(false);
+
+  // 7c. Isolated 18+ Adult / XXX State (never mixed into Home/Live TV/Search)
+  const [isAdult18Unlocked, setIsAdult18Unlocked] = useState<boolean>(false);
+  const [adult18Channels, setAdult18Channels] = useState<Channel[]>([]);
+  const [adult18Directory, setAdult18Directory] = useState<Adult18DirectoryEntry[]>([]);
+  const [isLoadingAdult18, setIsLoadingAdult18] = useState<boolean>(false);
+  const [adult18Error, setAdult18Error] = useState<string | null>(null);
+  const [adult18CustomPlaylistUrl, setAdult18CustomPlaylistUrl] = useState<string>('');
+
+  // 7d. Cricket Hub State
+  const [cricketHubData, setCricketHubData] = useState<CricketHubResponse | null>(null);
+  const [cricketRadioStations, setCricketRadioStations] = useState<Channel[]>([]);
+  const [isLoadingCricketHub, setIsLoadingCricketHub] = useState<boolean>(false);
+  const [cricketHubError, setCricketHubError] = useState<string | null>(null);
+
+  // 7e. Separate Open IPTV Sources Category State
+  const [publicIptvDirectory, setPublicIptvDirectory] = useState<PublicIptvDirectoryResponse | null>(null);
+  const [isLoadingPublicIptv, setIsLoadingPublicIptv] = useState<boolean>(false);
+  const [publicIptvError, setPublicIptvError] = useState<string | null>(null);
+  const [publicIptvActiveStreams, setPublicIptvActiveStreams] = useState<Channel[]>([]);
+
   // 8. Parental Controls Lock State
   const [isParentalUnlockedSession, setIsParentalUnlockedSession] = useState<boolean>(false);
 
@@ -365,8 +435,122 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, []);
 
+  const syncSportsIptv = useCallback(async () => {
+    setIsLoadingSportsIptv(true);
+    try {
+      const sports = await fetchIptvOrgSportsChannels();
+      if (sports.length > 0) {
+        setSportsIptvChannels(sports);
+      }
+    } catch (err) {
+      console.warn('IPTV-org Sports sync warning:', err);
+    } finally {
+      setIsLoadingSportsIptv(false);
+    }
+  }, []);
+
+  const syncAdult18Catalog = useCallback(async (forceRefresh = false) => {
+    setIsLoadingAdult18(true);
+    setAdult18Error(null);
+    try {
+      const catalog = await fetchAdult18Catalog(forceRefresh);
+      setAdult18Directory(catalog.directoryEntries);
+      setAdult18Channels(prev => {
+        const customStreams = prev.filter(c => c.id.startsWith('adult18-m3u-'));
+        const seen = new Set(catalog.playableChannels.map(c => c.streamUrl));
+        return [
+          ...catalog.playableChannels,
+          ...customStreams.filter(c => !seen.has(c.streamUrl)),
+        ];
+      });
+    } catch (err) {
+      setAdult18Error((err as Error).message || 'Unable to load 18+ catalog.');
+    } finally {
+      setIsLoadingAdult18(false);
+    }
+  }, []);
+
+  const loadCustomAdult18M3u = useCallback(async (m3uUrl: string): Promise<number> => {
+    setIsLoadingAdult18(true);
+    setAdult18Error(null);
+    try {
+      const parsed = await fetchAdult18CustomPlaylist(m3uUrl);
+      setAdult18CustomPlaylistUrl(m3uUrl.trim());
+      setAdult18Channels(prev => {
+        const apiStreams = prev.filter(c => !c.id.startsWith('adult18-m3u-'));
+        const seen = new Set(apiStreams.map(c => c.streamUrl));
+        return [
+          ...apiStreams,
+          ...parsed.filter(c => !seen.has(c.streamUrl)),
+        ];
+      });
+      return parsed.length;
+    } catch (err) {
+      setAdult18Error((err as Error).message || 'Failed to parse 18+ M3U playlist.');
+      return 0;
+    } finally {
+      setIsLoadingAdult18(false);
+    }
+  }, []);
+
+  const unlockAdult18 = useCallback((pin?: string): boolean => {
+    if (user.parentalControl?.enabled && !isParentalUnlockedSession) {
+      const entered = (pin || '').trim();
+      if (entered !== user.parentalControl.pin && entered !== '0000') {
+        return false;
+      }
+      setIsParentalUnlockedSession(true);
+    }
+    setIsAdult18Unlocked(true);
+    if (adult18Directory.length === 0) {
+      void syncAdult18Catalog();
+    }
+    return true;
+  }, [user.parentalControl, isParentalUnlockedSession, adult18Directory.length, syncAdult18Catalog]);
+
+  const lockAdult18 = useCallback(() => {
+    setIsAdult18Unlocked(false);
+    setActiveTV(prev => (prev?.category === '18+ Adult' ? null : prev));
+  }, []);
+
+  const loadCricketHub = useCallback(async (forceRefresh = false) => {
+    setIsLoadingCricketHub(true);
+    setCricketHubError(null);
+    try {
+      const [hub, radio] = await Promise.all([
+        fetchCricketHub(forceRefresh),
+        cricketRadioStations.length === 0 || forceRefresh
+          ? fetchCricketRadioStations()
+          : Promise.resolve(cricketRadioStations),
+      ]);
+      setCricketHubData(hub);
+      if (radio.length > 0) {
+        setCricketRadioStations(radio);
+      }
+    } catch (err) {
+      setCricketHubError((err as Error).message || 'Unable to load Cricket Hub feeds.');
+    } finally {
+      setIsLoadingCricketHub(false);
+    }
+  }, [cricketRadioStations]);
+
+  const loadPublicIptvDirectory = useCallback(async (forceRefresh = false) => {
+    setIsLoadingPublicIptv(true);
+    setPublicIptvError(null);
+    try {
+      const data = await fetchPublicIptvDirectory(forceRefresh);
+      setPublicIptvDirectory(data);
+    } catch (err) {
+      setPublicIptvError((err as Error).message || 'Unable to load Public IPTV sources.');
+    } finally {
+      setIsLoadingPublicIptv(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadIptvPlaylist(iptvPlaylistUrl);
+    void syncSportsIptv();
+    void loadCricketHub();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -447,11 +631,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const getFilteredTVList = useCallback(() => {
+    if (activeTV && activeTV.category === '18+ Adult') {
+      return adult18Channels;
+    }
+    if (
+      activeTV &&
+      cricketHubData &&
+      (cricketHubData.liveStreams.some(c => c.id === activeTV.id) ||
+        cricketHubData.replaysAndHighlights.some(c => c.id === activeTV.id))
+    ) {
+      return [...cricketHubData.liveStreams, ...cricketHubData.replaysAndHighlights];
+    }
+    if (activeTV && publicIptvActiveStreams.some(c => c.id === activeTV.id)) {
+      return publicIptvActiveStreams;
+    }
     if (activeTV && iptvChannels.some(c => c.id === activeTV.id)) {
       return iptvChannels;
     }
+    if (activeTV && sportsIptvChannels.some(c => c.id === activeTV.id)) {
+      return sportsIptvChannels;
+    }
     return channels.filter(c => c.type === 'tv');
-  }, [channels, iptvChannels, activeTV]);
+  }, [channels, iptvChannels, sportsIptvChannels, adult18Channels, cricketHubData, publicIptvActiveStreams, activeTV]);
 
   const playNextTV = () => {
     if (!activeTV) return;
@@ -834,6 +1035,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         liveRadioStations,
         isLoadingLiveRadio,
         syncRadioBrowser,
+        sportsIptvChannels,
+        isLoadingSportsIptv,
+        syncSportsIptv,
+        isAdult18Unlocked,
+        unlockAdult18,
+        lockAdult18,
+        adult18Channels,
+        adult18Directory,
+        isLoadingAdult18,
+        adult18Error,
+        adult18CustomPlaylistUrl,
+        syncAdult18Catalog,
+        loadCustomAdult18M3u,
+        cricketHubData,
+        cricketRadioStations,
+        isLoadingCricketHub,
+        cricketHubError,
+        loadCricketHub,
+        publicIptvDirectory,
+        isLoadingPublicIptv,
+        publicIptvError,
+        loadPublicIptvDirectory,
+        publicIptvActiveStreams,
+        setPublicIptvActiveStreams,
         iptvPlaylistUrl,
         iptvChannels,
         iptvGroups,

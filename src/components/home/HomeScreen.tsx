@@ -13,10 +13,6 @@ import {
   Flame, 
   ExternalLink, 
   Music,
-  Smartphone,
-  Package,
-  ArrowDownToLine,
-  Download,
   Globe,
   Activity,
   Heart,
@@ -47,13 +43,14 @@ export const HomeScreen: React.FC = () => {
     activeTV, 
     activeRadio,
     isRadioPlaying,
-    setIsDownloadModalOpen,
     toggleFavorite,
     isFavorite,
     selectedCountryItem,
     setSelectedCountryItem,
     monetization,
-    iptvChannels
+    iptvChannels,
+    sportsIptvChannels,
+    cricketHubData
   } = useApp();
 
   // Top Featured Broadcasts from the Web TV Dictionary
@@ -94,10 +91,13 @@ export const HomeScreen: React.FC = () => {
     return channels.filter(c => c.type === 'tv' && (c.category === 'Sports' || c.category === 'Cricket' || c.category === 'Soccer' || c.category === 'Football' || c.category === 'WWE & Wrestling')).slice(0, 10);
   }, [channels]);
 
-  // Dedicated Cricket Live Channels
+  // Dedicated Cricket Live Channels (Curated 24/7 + Cricombo & Cricket On Air Live Streams)
   const cricketChannels = useMemo(() => {
-    return channels.filter(c => c.type === 'tv' && c.category === 'Cricket').slice(0, 8);
-  }, [channels]);
+    const base = channels.filter(c => c.type === 'tv' && c.category === 'Cricket');
+    const hubLive = cricketHubData?.liveStreams || [];
+    const seen = new Set(hubLive.map(c => c.streamUrl));
+    return [...hubLive, ...base.filter(c => !seen.has(c.streamUrl))].slice(0, 12);
+  }, [channels, cricketHubData]);
 
   // Dedicated Soccer / Football Live Channels
   const soccerChannels = useMemo(() => {
@@ -345,6 +345,14 @@ export const HomeScreen: React.FC = () => {
               </button>
 
               <button
+                onClick={() => setCurrentTab('cricket')}
+                className="px-5 py-3 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 font-bold text-xs sm:text-sm flex items-center gap-2 border border-emerald-500/40 backdrop-blur-sm transition-colors cursor-pointer"
+              >
+                <Trophy className="w-4 h-4 text-emerald-400" />
+                <span>Cricket Hub</span>
+              </button>
+
+              <button
                 onClick={() => setCurrentTab('countries')}
                 className="px-5 py-3 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-white font-medium text-xs sm:text-sm flex items-center gap-2 border border-slate-700 backdrop-blur-sm transition-colors cursor-pointer"
               >
@@ -449,15 +457,12 @@ export const HomeScreen: React.FC = () => {
       {/* Live Cricket Streaming Section */}
       {cricketChannels.length > 0 && (
         <ChannelHorizontalRow
-          title="Live Cricket Streaming"
-          subtitle="DD Sports, Willow Classics 24/7, ICC World Cup matches, and T20 super overs"
+          title="Live Cricket Streaming (Cricket Hub)"
+          subtitle="Cricombo live matches, Cricket On Air official streams, DD Sports, and ICC World Cricket TV"
           icon={Trophy}
           channels={cricketChannels}
-          badgeText="Cricket Live"
-          onViewAll={() => {
-            setSelectedCategory('Cricket');
-            setCurrentTab('tv');
-          }}
+          badgeText="Cricket Hub"
+          onViewAll={() => setCurrentTab('cricket')}
         />
       )}
 
@@ -503,6 +508,21 @@ export const HomeScreen: React.FC = () => {
           setCurrentTab('tv');
         }}
       />
+
+      {/* 6b. Live Worldwide Sports M3U (IPTV-org categories/sports.m3u) */}
+      {sportsIptvChannels.length > 0 && (
+        <ChannelHorizontalRow
+          title="Worldwide Live Sports TV (IPTV-org)"
+          subtitle={`${sportsIptvChannels.length}+ live sports broadcasts from the official IPTV-org sports feed`}
+          icon={Trophy}
+          channels={sportsIptvChannels.slice(0, 14)}
+          badgeText="Sports M3U"
+          onViewAll={() => {
+            setSelectedCategory('Sports');
+            setCurrentTab('tv');
+          }}
+        />
+      )}
 
       {/* 7. Music TV */}
       <ChannelHorizontalRow
@@ -550,55 +570,6 @@ export const HomeScreen: React.FC = () => {
         badgeText="Editor's Pick"
         onViewAll={() => setCurrentTab('tv')}
       />
-
-      {/* Android Mobile App Direct Download & Testing Section */}
-      <section className="relative rounded-3xl p-6 sm:p-8 bg-gradient-to-r from-emerald-950/70 via-slate-900 to-amber-950/50 border border-emerald-500/30 overflow-hidden shadow-2xl">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-        
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="max-w-xl">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[11px] font-bold uppercase tracking-wider mb-2">
-              <Smartphone className="w-3.5 h-3.5" />
-              <span>Android Distribution Files Ready</span>
-            </div>
-            
-            <h2 className="font-display text-xl sm:text-2xl font-extrabold text-white tracking-tight">
-              Test Free TV &amp; Radio Live on Android Mobile
-            </h2>
-            
-            <p className="text-xs sm:text-sm text-slate-300 mt-2 leading-relaxed">
-              Download the APK directly to install and test Free TV &amp; Radio Live on your Android smartphone or tablet right away.
-            </p>
-
-            <div className="flex flex-wrap items-center gap-3 mt-3 text-[11px] text-slate-400">
-              <span className="flex items-center gap-1 text-emerald-400 font-mono">
-                ✓ /src/FreeTVRadioLive.apk (Direct Mobile Installer)
-              </span>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 shrink-0">
-            {/* Direct APK Download Button */}
-            <a
-              href="/FreeTVRadioLive.apk"
-              download="FreeTVRadioLive.apk"
-              className="px-5 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 transition-all cursor-pointer whitespace-nowrap active:scale-95"
-            >
-              <ArrowDownToLine className="w-4 h-4" />
-              <span>Download .APK (Mobile Install)</span>
-            </a>
-
-            {/* Direct Android Installer Info Button */}
-            <button
-              onClick={() => setIsDownloadModalOpen(true)}
-              className="px-4 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 border border-slate-700 transition-all cursor-pointer whitespace-nowrap"
-            >
-              <Download className="w-4 h-4 text-amber-400" />
-              <span>Android Install Guide</span>
-            </button>
-          </div>
-        </div>
-      </section>
 
       {/* Trust & Transparency Feature Strip */}
       <section className="rounded-2xl p-6 bg-slate-900/50 border border-slate-800 text-center sm:text-left">

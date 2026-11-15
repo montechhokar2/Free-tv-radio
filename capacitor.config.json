@@ -1,0 +1,8 @@
+{
+  "appId": "live.freetvradio.app",
+  "appName": "Free TV & Radio Live",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": true
+  }
+}

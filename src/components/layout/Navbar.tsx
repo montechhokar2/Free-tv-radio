@@ -1,6 +1,7 @@
 import React from 'react';
-import { Tv, Radio, Heart, Shield, Sun, Moon, User, Search, Download } from 'lucide-react';
+import { Tv, Trophy, Globe, Shield, ShieldAlert, Sun, Moon, User, Search } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { PWAInstallButton } from '../common/PWAInstallButton';
 
 export const Navbar: React.FC = () => {
   const { 
@@ -9,8 +10,7 @@ export const Navbar: React.FC = () => {
     theme, 
     toggleTheme, 
     user, 
-    setIsAuthModalOpen,
-    setIsDownloadModalOpen
+    setIsAuthModalOpen
   } = useApp();
 
   return (
@@ -30,7 +30,7 @@ export const Navbar: React.FC = () => {
         </button>
 
         {/* Zone 2: concise single-line text links */}
-        <nav className="hidden md:flex items-center gap-5 text-sm font-medium">
+        <nav className="hidden md:flex items-center gap-3 lg:gap-4 text-xs lg:text-sm font-medium overflow-x-auto scrollbar-none">
           <button
             onClick={() => setCurrentTab('home')}
             className={`whitespace-nowrap shrink-0 transition-colors cursor-pointer py-1 ${
@@ -52,6 +52,17 @@ export const Navbar: React.FC = () => {
             Live TV
           </button>
           <button
+            onClick={() => setCurrentTab('cricket')}
+            className={`whitespace-nowrap shrink-0 transition-colors cursor-pointer py-1 flex items-center gap-1 ${
+              currentTab === 'cricket' 
+                ? 'text-emerald-400 font-semibold border-b-2 border-emerald-400' 
+                : 'text-emerald-300/90 hover:text-emerald-300'
+            }`}
+          >
+            <Trophy className="w-3.5 h-3.5" />
+            <span>Cricket Hub</span>
+          </button>
+          <button
             onClick={() => setCurrentTab('iptv')}
             className={`whitespace-nowrap shrink-0 transition-colors cursor-pointer py-1 ${
               currentTab === 'iptv' 
@@ -60,6 +71,17 @@ export const Navbar: React.FC = () => {
             }`}
           >
             IPTV &amp; EPG
+          </button>
+          <button
+            onClick={() => setCurrentTab('public_iptv')}
+            className={`whitespace-nowrap shrink-0 transition-colors cursor-pointer py-1 flex items-center gap-1 ${
+              currentTab === 'public_iptv' 
+                ? 'text-sky-400 font-semibold border-b-2 border-sky-400' 
+                : 'text-sky-300/90 hover:text-sky-300'
+            }`}
+          >
+            <Globe className="w-3.5 h-3.5" />
+            <span>Open IPTV</span>
           </button>
           <button
             onClick={() => setCurrentTab('radio')}
@@ -102,6 +124,17 @@ export const Navbar: React.FC = () => {
             OTT &amp; YouTube
           </button>
           <button
+            onClick={() => setCurrentTab('adult18')}
+            className={`whitespace-nowrap shrink-0 transition-colors cursor-pointer py-1 flex items-center gap-1 ${
+              currentTab === 'adult18' 
+                ? 'text-rose-400 font-semibold border-b-2 border-rose-400' 
+                : 'text-rose-300/80 hover:text-rose-300'
+            }`}
+          >
+            <ShieldAlert className="w-3.5 h-3.5" />
+            <span>18+</span>
+          </button>
+          <button
             onClick={() => setCurrentTab('favorites')}
             className={`whitespace-nowrap shrink-0 transition-colors cursor-pointer py-1 flex items-center gap-1.5 ${
               currentTab === 'favorites' 
@@ -142,15 +175,7 @@ export const Navbar: React.FC = () => {
 
         {/* Zone 3: 1 primary action area */}
         <div className="flex items-center gap-2.5 shrink-0">
-          {/* Download APK / App button */}
-          <button
-            onClick={() => setIsDownloadModalOpen(true)}
-            title="Download Android App (APK)"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span className="hidden lg:inline">Android APK</span>
-          </button>
+          <PWAInstallButton />
 
           {/* Quick theme toggle */}
           <button

@@ -1,9 +1,9 @@
 import React from 'react';
-import { Tv, Radio, ShieldCheck, Heart, Scale, Smartphone, Download } from 'lucide-react';
+import { Tv, ShieldCheck } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export const Footer: React.FC = () => {
-  const { setCurrentTab, setIsLegalModalOpen, setIsDownloadModalOpen } = useApp();
+  const { setCurrentTab, setIsLegalModalOpen } = useApp();
 
   return (
     <footer className="border-t border-slate-900 bg-slate-950 text-slate-400 py-10 px-4 sm:px-6 lg:px-8 text-xs transition-colors">
@@ -34,6 +34,12 @@ export const Footer: React.FC = () => {
           <button onClick={() => setCurrentTab('tv')} className="hover:text-white transition-colors cursor-pointer">
             Live TV
           </button>
+          <button onClick={() => setCurrentTab('cricket')} className="text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer font-semibold">
+            Cricket Hub
+          </button>
+          <button onClick={() => setCurrentTab('public_iptv')} className="text-sky-400 hover:text-sky-300 transition-colors cursor-pointer font-semibold">
+            Open IPTV Sources
+          </button>
           <button onClick={() => setCurrentTab('radio')} className="hover:text-white transition-colors cursor-pointer">
             Radio
           </button>
@@ -43,18 +49,14 @@ export const Footer: React.FC = () => {
           <button onClick={() => setCurrentTab('ott')} className="hover:text-white transition-colors cursor-pointer">
             OTT &amp; YouTube
           </button>
+          <button onClick={() => setCurrentTab('adult18')} className="text-rose-400/90 hover:text-rose-300 transition-colors cursor-pointer">
+            18+ Adult
+          </button>
           <button onClick={() => setCurrentTab('favorites')} className="hover:text-white transition-colors cursor-pointer">
             Favorites
           </button>
           <button onClick={() => setCurrentTab('admin')} className="hover:text-white transition-colors cursor-pointer">
             Admin Console
-          </button>
-          <button 
-            onClick={() => setIsDownloadModalOpen(true)} 
-            className="text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1 cursor-pointer"
-          >
-            <Smartphone className="w-3.5 h-3.5" />
-            <span>Download App (APK)</span>
           </button>
           <button 
             onClick={() => setIsLegalModalOpen(true)} 

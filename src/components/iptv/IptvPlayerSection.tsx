@@ -14,7 +14,8 @@ import {
   ChevronUp,
   AlertCircle,
   X,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Trophy
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { VideoPlayer } from '../player/VideoPlayer';
@@ -25,9 +26,13 @@ import {
   formatEpgTime,
   formatEpgDuration
 } from '../../services/epgService';
+import { IPTV_ORG_SPORTS_PLAYLIST_URL } from '../../services/iptvOrgService';
+
+const SPORTS_GROUP_KEY = 'Sports (IPTV-org)';
 
 const POPULAR_GROUPS = [
   'All',
+  SPORTS_GROUP_KEY,
   'UK',
   'India',
   'News',
@@ -64,7 +69,10 @@ export const IptvPlayerSection: React.FC = () => {
     playTVChannel,
     closeTVPlayer,
     toggleFavorite,
-    isFavorite
+    isFavorite,
+    sportsIptvChannels,
+    isLoadingSportsIptv,
+    syncSportsIptv
   } = useApp();
 
   const [selectedGroup, setSelectedGroup] = useState<string>('UK');
@@ -85,14 +93,29 @@ export const IptvPlayerSection: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (iptvGroups.length > 0 && selectedGroup !== 'All' && !iptvGroups.includes(selectedGroup)) {
+    if (
+      iptvGroups.length > 0 &&
+      selectedGroup !== 'All' &&
+      selectedGroup !== SPORTS_GROUP_KEY &&
+      !iptvGroups.includes(selectedGroup)
+    ) {
       setSelectedGroup('All');
     }
   }, [iptvGroups, selectedGroup]);
 
+  const isSportsCategoryActive = selectedGroup === SPORTS_GROUP_KEY;
+
+  const activeSourceChannels = useMemo(() => {
+    return isSportsCategoryActive ? sportsIptvChannels : iptvChannels;
+  }, [isSportsCategoryActive, sportsIptvChannels, iptvChannels]);
+
   const filteredChannels = useMemo(() => {
-    return iptvChannels.filter(ch => {
-      if (selectedGroup !== 'All' && (ch.groupTitle || ch.country) !== selectedGroup) {
+    return activeSourceChannels.filter(ch => {
+      if (
+        !isSportsCategoryActive &&
+        selectedGroup !== 'All' &&
+        (ch.groupTitle || ch.country) !== selectedGroup
+      ) {
         return false;
       }
       if (formatFilter !== 'all' && ch.streamFormat !== formatFilter) {
@@ -107,11 +130,20 @@ export const IptvPlayerSection: React.FC = () => {
         const matchesName = ch.name.toLowerCase().includes(q);
         const matchesTvgId = ch.tvgId?.toLowerCase().includes(q);
         const matchesGroup = (ch.groupTitle || ch.country).toLowerCase().includes(q);
-        if (!matchesName && !matchesTvgId && !matchesGroup) return false;
+        const matchesCountry = ch.country.toLowerCase().includes(q);
+        if (!matchesName && !matchesTvgId && !matchesGroup && !matchesCountry) return false;
       }
       return true;
     });
-  }, [iptvChannels, selectedGroup, formatFilter, onlyWithEpg, searchTerm, epgProgramsByChannelId]);
+  }, [
+    activeSourceChannels,
+    isSportsCategoryActive,
+    selectedGroup,
+    formatFilter,
+    onlyWithEpg,
+    searchTerm,
+    epgProgramsByChannelId
+  ]);
 
   const visibleChannels = useMemo(() => {
     return filteredChannels.slice(0, pageLimit);
@@ -121,7 +153,7 @@ export const IptvPlayerSection: React.FC = () => {
     if (visibleChannels.length === 0) return;
     const sampleForGroup = visibleChannels.slice(0, 48);
     void loadEpgForChannels(sampleForGroup);
-  }, [selectedGroup, iptvChannels.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedGroup, iptvChannels.length, sportsIptvChannels.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const activeChannelEpg = useMemo(() => {
     if (!activeTV) return null;
@@ -326,7 +358,7 @@ export const IptvPlayerSection: React.FC = () => {
                 Free-TV M3U8 + XMLTV EPG
               </span>
               <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
-                {iptvChannels.length.toLocaleString()} Channels · {iptvEpgUrls.length} EPG Feeds
+                {iptvChannels.length.toLocaleString()} Channels · {sportsIptvChannels.length} Sports M3U · {iptvEpgUrls.length} EPG Feeds
               </span>
             </div>
             <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-white flex items-center gap-2.5">
@@ -383,21 +415,33 @@ export const IptvPlayerSection: React.FC = () => {
         {showSourcePanel && (
           <div className="pt-4 border-t border-slate-800 grid grid-cols-1 lg:grid-cols-2 gap-4 text-xs">
             <form onSubmit={handleLoadPlaylistSubmit} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2.5">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-bold text-white flex items-center gap-1.5">
                   <Link2 className="w-3.5 h-3.5 text-amber-400" />
                   <span>M3U / M3U8 Playlist URL</span>
                 </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCustomPlaylistInput(DEFAULT_FREE_TV_PLAYLIST_URL);
-                    void loadIptvPlaylist(DEFAULT_FREE_TV_PLAYLIST_URL);
-                  }}
-                  className="text-[11px] text-amber-400 hover:underline cursor-pointer"
-                >
-                  Reset to Free-TV Master
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomPlaylistInput(IPTV_ORG_SPORTS_PLAYLIST_URL);
+                      void loadIptvPlaylist(IPTV_ORG_SPORTS_PLAYLIST_URL);
+                    }}
+                    className="text-[11px] text-emerald-400 hover:underline cursor-pointer font-semibold"
+                  >
+                    Load IPTV-org Sports M3U
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomPlaylistInput(DEFAULT_FREE_TV_PLAYLIST_URL);
+                      void loadIptvPlaylist(DEFAULT_FREE_TV_PLAYLIST_URL);
+                    }}
+                    className="text-[11px] text-amber-400 hover:underline cursor-pointer"
+                  >
+                    Reset to Free-TV Master
+                  </button>
+                </div>
               </div>
               <div className="flex gap-2">
                 <input
@@ -483,7 +527,7 @@ export const IptvPlayerSection: React.FC = () => {
                   setSearchTerm(e.target.value);
                   setPageLimit(48);
                 }}
-                placeholder="Search 2,190+ IPTV channels or tvg-id..."
+                placeholder={`Search ${activeSourceChannels.length.toLocaleString()} IPTV channels, country, or tvg-id...`}
                 className="w-full pl-9 pr-8 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-500"
               />
               {searchTerm && (
@@ -500,12 +544,19 @@ export const IptvPlayerSection: React.FC = () => {
               <select
                 value={selectedGroup}
                 onChange={e => {
-                  setSelectedGroup(e.target.value);
+                  const val = e.target.value;
+                  setSelectedGroup(val);
                   setPageLimit(48);
+                  if (val === SPORTS_GROUP_KEY && sportsIptvChannels.length === 0) {
+                    void syncSportsIptv();
+                  }
                 }}
                 className="px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
               >
                 <option value="All">All Countries / Groups ({iptvChannels.length})</option>
+                <option value={SPORTS_GROUP_KEY}>
+                  Sports (IPTV-org M3U · {sportsIptvChannels.length})
+                </option>
                 {iptvGroups.map(g => (
                   <option key={g} value={g}>
                     {g}
@@ -538,28 +589,65 @@ export const IptvPlayerSection: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
-            {POPULAR_GROUPS.filter(g => g === 'All' || iptvGroups.includes(g)).map(group => {
+            {POPULAR_GROUPS.filter(
+              g => g === 'All' || g === SPORTS_GROUP_KEY || iptvGroups.includes(g)
+            ).map(group => {
               const isActive = selectedGroup === group;
+              const isSports = group === SPORTS_GROUP_KEY;
               return (
                 <button
                   key={group}
                   onClick={() => {
                     setSelectedGroup(group);
                     setPageLimit(48);
+                    if (isSports && sportsIptvChannels.length === 0) {
+                      void syncSportsIptv();
+                    }
                   }}
-                  className={`px-3 py-1.5 rounded-xl whitespace-nowrap shrink-0 font-medium transition-colors cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl whitespace-nowrap shrink-0 font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
                     isActive
-                      ? 'bg-amber-500 text-slate-950 font-bold'
+                      ? isSports
+                        ? 'bg-emerald-500 text-slate-950 font-bold'
+                        : 'bg-amber-500 text-slate-950 font-bold'
+                      : isSports
+                      ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                       : 'bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800'
                   }`}
                 >
-                  {group}
+                  {isSports && <Trophy className="w-3.5 h-3.5" />}
+                  <span>
+                    {isSports ? `Sports M3U (${sportsIptvChannels.length})` : group}
+                  </span>
                 </button>
               );
             })}
           </div>
         </div>
       </div>
+
+      {isSportsCategoryActive && (
+        <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Trophy className="w-4 h-4 text-emerald-400 shrink-0" />
+            <div className="min-w-0">
+              <p className="font-bold text-white">
+                IPTV-org Live Sports Category ({sportsIptvChannels.length} channels)
+              </p>
+              <p className="text-[11px] text-emerald-300/80 font-mono truncate">
+                {IPTV_ORG_SPORTS_PLAYLIST_URL}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => void syncSportsIptv()}
+            disabled={isLoadingSportsIptv}
+            className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoadingSportsIptv ? 'animate-spin' : ''}`} />
+            <span>{isLoadingSportsIptv ? 'Syncing Sports M3U...' : 'Refresh Sports M3U'}</span>
+          </button>
+        </div>
+      )}
 
       {iptvPlaylistError && (
         <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-between gap-3 text-xs text-rose-300">
@@ -578,7 +666,13 @@ export const IptvPlayerSection: React.FC = () => {
 
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
         <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${isLoadingIptvPlaylist ? 'bg-amber-400 animate-ping' : 'bg-emerald-400'}`} />
+          <span
+            className={`w-2 h-2 rounded-full ${
+              (isSportsCategoryActive ? isLoadingSportsIptv : isLoadingIptvPlaylist)
+                ? 'bg-amber-400 animate-ping'
+                : 'bg-emerald-400'
+            }`}
+          />
           <span>
             Showing <strong>{visibleChannels.length}</strong> of <strong>{filteredChannels.length}</strong> channels
             {selectedGroup !== 'All' ? ` in ${selectedGroup}` : ''}
@@ -599,7 +693,9 @@ export const IptvPlayerSection: React.FC = () => {
         </div>
       </div>
 
-      {isLoadingIptvPlaylist && iptvChannels.length === 0 ? (
+      {(isSportsCategoryActive
+        ? isLoadingSportsIptv && sportsIptvChannels.length === 0
+        : isLoadingIptvPlaylist && iptvChannels.length === 0) ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="h-48 rounded-2xl bg-slate-900/70 border border-slate-800 animate-pulse p-4" />
@@ -656,7 +752,11 @@ export const IptvPlayerSection: React.FC = () => {
                       {ch.name}
                     </h3>
                     <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mt-0.5">
-                      <span className="text-slate-300 font-medium">{ch.groupTitle || ch.country}</span>
+                      <span className="text-slate-300 font-medium">
+                        {ch.country && ch.groupTitle && ch.country !== ch.groupTitle
+                          ? `${ch.country} · ${ch.groupTitle}`
+                          : ch.groupTitle || ch.country}
+                      </span>
                       <span>•</span>
                       <span className="truncate">{ch.category}</span>
                     </div>
@@ -859,7 +959,8 @@ export const IptvPlayerSection: React.FC = () => {
         </div>
       )}
 
-      {!isLoadingIptvPlaylist && filteredChannels.length === 0 && (
+      {!(isSportsCategoryActive ? isLoadingSportsIptv : isLoadingIptvPlaylist) &&
+        filteredChannels.length === 0 && (
         <div className="p-10 text-center rounded-2xl bg-slate-900 border border-slate-800 space-y-2.5">
           <Tv className="w-8 h-8 text-slate-500 mx-auto" />
           <h3 className="text-sm font-bold text-white">No IPTV Channels Match Filter</h3>

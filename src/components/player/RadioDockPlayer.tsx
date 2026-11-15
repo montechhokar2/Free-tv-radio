@@ -13,7 +13,9 @@ import {
   Maximize2, 
   RotateCcw,
   ShieldCheck,
-  Globe
+  Globe,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { SleepTimerOption } from '../../types';
@@ -41,6 +43,7 @@ export const RadioDockPlayer: React.FC = () => {
   const [streamError, setStreamError] = useState(false);
   const [showSleepMenu, setShowSleepMenu] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
 
   // Sync Audio src & play/pause
   useEffect(() => {
@@ -130,130 +133,234 @@ export const RadioDockPlayer: React.FC = () => {
     <>
       <audio ref={audioRef} preload="auto" playsInline />
 
-      {/* Floating Docked Bar */}
-      <aside aria-label="Live Radio Player" className="fixed bottom-16 md:bottom-4 left-2 right-2 md:left-6 md:right-6 lg:left-auto lg:right-8 lg:w-[500px] z-40 bg-slate-900/95 dark:bg-slate-900/95 border border-amber-500/30 rounded-2xl p-2.5 sm:p-3 shadow-2xl backdrop-blur-xl transition-all duration-300">
-        <div className="flex items-center gap-3">
-          {/* Station Artwork with Pulsing Equalizer Badge */}
-          <div 
-            onClick={() => setIsExpanded(true)}
-            className="relative w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 overflow-hidden shrink-0 cursor-pointer group"
-          >
-            {activeRadio.logoUrl ? (
-              <img 
-                src={activeRadio.logoUrl} 
-                alt={activeRadio.name} 
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-amber-500/10 text-amber-400">
-                <Radio className="w-6 h-6" />
-              </div>
-            )}
-            {/* Animated Equalizer Waves */}
-            {isRadioPlaying && !isBuffering && (
-              <div className="absolute inset-0 bg-black/40 flex items-end justify-center gap-0.5 pb-1">
-                <span className="w-1 bg-amber-400 rounded-full animate-pulse h-3" />
-                <span className="w-1 bg-amber-400 rounded-full animate-bounce h-5" style={{ animationDelay: '150ms' }} />
-                <span className="w-1 bg-amber-400 rounded-full animate-pulse h-2" style={{ animationDelay: '300ms' }} />
-                <span className="w-1 bg-amber-400 rounded-full animate-bounce h-4" style={{ animationDelay: '450ms' }} />
-              </div>
-            )}
-            {isBuffering && (
-              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
-              </div>
-            )}
-          </div>
+      {/* Floating Docked Bar (Full Dock vs Compact Mini-Player) */}
+      {isMinimized ? (
+        <aside
+          aria-label="Compact Mini Radio Player"
+          className="fixed bottom-16 md:bottom-4 right-2 sm:right-6 z-40 bg-slate-900/95 border border-amber-500/35 rounded-full py-1.5 pl-2 pr-2 shadow-2xl backdrop-blur-xl transition-all duration-300 max-w-[calc(100vw-1rem)]"
+        >
+          <div className="flex items-center gap-2">
+            {/* Compact Artwork */}
+            <div
+              onClick={() => setIsExpanded(true)}
+              title="Open Radio Details"
+              className="relative w-8 h-8 rounded-full bg-slate-800 border border-slate-700 overflow-hidden shrink-0 cursor-pointer"
+            >
+              {activeRadio.logoUrl ? (
+                <img
+                  src={activeRadio.logoUrl}
+                  alt={activeRadio.name}
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-amber-500/10 text-amber-400">
+                  <Radio className="w-4 h-4" />
+                </div>
+              )}
+              {isBuffering && (
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                  <div className="w-3 h-3 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+            </div>
 
-          {/* Station Info */}
-          <div 
-            onClick={() => setIsExpanded(true)}
-            className="min-w-0 flex-1 cursor-pointer"
-          >
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs sm:text-sm font-bold text-white truncate hover:text-amber-400 transition-colors">
+            {/* Compact Station Label */}
+            <button
+              type="button"
+              onClick={() => setIsMinimized(false)}
+              title="Restore full radio dock"
+              className="flex items-center gap-1.5 min-w-0 max-w-[130px] sm:max-w-[170px] text-left cursor-pointer"
+            >
+              {isRadioPlaying && !isBuffering && !streamError && (
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
+              )}
+              <span className="text-xs font-bold text-white truncate hover:text-amber-400 transition-colors">
                 {activeRadio.name}
               </span>
-              <span className="px-1.5 py-0.2 bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[9px] font-semibold rounded">
-                FM
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400 truncate">
-              {streamError ? (
-                <span className="text-rose-400 flex items-center gap-1">
-                  Stream interrupted · Click retry
-                </span>
-              ) : (
-                activeRadio.currentProgram || `${activeRadio.language} · ${activeRadio.category}`
-              )}
-            </p>
-          </div>
+            </button>
 
-          {/* Quick Play Controls */}
-          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            {/* Play / Pause or Retry */}
             {streamError ? (
               <button
                 onClick={retryPlayback}
                 title="Retry stream"
-                className="p-2 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs flex items-center gap-1 transition-colors cursor-pointer"
+                aria-label="Retry stream"
+                className="w-7 h-7 rounded-full bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 flex items-center justify-center transition-colors cursor-pointer shrink-0"
               >
-                <RotateCcw className="w-4 h-4" />
-                <span className="hidden sm:inline">Retry</span>
+                <RotateCcw className="w-3.5 h-3.5" />
               </button>
             ) : (
-              <>
-                <button
-                  onClick={playPrevRadio}
-                  title="Previous station"
-                  className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-                >
-                  <SkipBack className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={toggleRadioPlay}
-                  title={isRadioPlaying ? 'Pause' : 'Play'}
-                  className="w-9 h-9 rounded-full bg-amber-500 hover:bg-amber-400 text-black flex items-center justify-center transition-transform active:scale-95 shadow-md shadow-amber-500/20 cursor-pointer"
-                >
-                  {isRadioPlaying ? <Pause className="w-4 h-4 fill-black" /> : <Play className="w-4 h-4 fill-black ml-0.5" />}
-                </button>
-                <button
-                  onClick={playNextRadio}
-                  title="Next station"
-                  className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-                >
-                  <SkipForward className="w-4 h-4" />
-                </button>
-              </>
+              <button
+                onClick={toggleRadioPlay}
+                title={isRadioPlaying ? 'Pause' : 'Play'}
+                aria-label={isRadioPlaying ? 'Pause radio' : 'Play radio'}
+                className="w-7 h-7 rounded-full bg-amber-500 hover:bg-amber-400 text-black flex items-center justify-center transition-transform active:scale-95 shadow-md shadow-amber-500/20 cursor-pointer shrink-0"
+              >
+                {isRadioPlaying ? (
+                  <Pause className="w-3.5 h-3.5 fill-black" />
+                ) : (
+                  <Play className="w-3.5 h-3.5 fill-black ml-0.5" />
+                )}
+              </button>
             )}
 
-            {/* Favorite button */}
+            {/* Expand back to Dock View */}
             <button
-              onClick={() => toggleFavorite(activeRadio.id)}
-              title={isFavorite(activeRadio.id) ? 'Remove Favorite' : 'Add to Favorites'}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 transition-colors cursor-pointer"
+              onClick={() => setIsMinimized(false)}
+              title="Expand to dock player"
+              aria-label="Expand to dock player"
+              className="p-1 rounded-full text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
             >
-              <Heart className={`w-4 h-4 ${isFavorite(activeRadio.id) ? 'fill-red-500 text-red-500' : ''}`} />
+              <ChevronUp className="w-4 h-4" />
             </button>
 
-            {/* Expand / Close */}
-            <button
-              onClick={() => setIsExpanded(true)}
-              title="Expand Details"
-              className="hidden sm:block p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-            >
-              <Maximize2 className="w-4 h-4" />
-            </button>
+            {/* Close */}
             <button
               onClick={closeRadioPlayer}
               title="Close Radio"
-              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors cursor-pointer"
+              aria-label="Close radio player"
+              className="p-1 rounded-full text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
-        </div>
-      </aside>
+        </aside>
+      ) : (
+        <aside aria-label="Live Radio Player" className="fixed bottom-16 md:bottom-4 left-2 right-2 md:left-6 md:right-6 lg:left-auto lg:right-8 lg:w-[500px] z-40 bg-slate-900/95 dark:bg-slate-900/95 border border-amber-500/30 rounded-2xl p-2.5 sm:p-3 shadow-2xl backdrop-blur-xl transition-all duration-300">
+          <div className="flex items-center gap-3">
+            {/* Station Artwork with Pulsing Equalizer Badge */}
+            <div 
+              onClick={() => setIsExpanded(true)}
+              className="relative w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 overflow-hidden shrink-0 cursor-pointer group"
+            >
+              {activeRadio.logoUrl ? (
+                <img 
+                  src={activeRadio.logoUrl} 
+                  alt={activeRadio.name} 
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-amber-500/10 text-amber-400">
+                  <Radio className="w-6 h-6" />
+                </div>
+              )}
+              {/* Animated Equalizer Waves */}
+              {isRadioPlaying && !isBuffering && (
+                <div className="absolute inset-0 bg-black/40 flex items-end justify-center gap-0.5 pb-1">
+                  <span className="w-1 bg-amber-400 rounded-full animate-pulse h-3" />
+                  <span className="w-1 bg-amber-400 rounded-full animate-bounce h-5" style={{ animationDelay: '150ms' }} />
+                  <span className="w-1 bg-amber-400 rounded-full animate-pulse h-2" style={{ animationDelay: '300ms' }} />
+                  <span className="w-1 bg-amber-400 rounded-full animate-bounce h-4" style={{ animationDelay: '450ms' }} />
+                </div>
+              )}
+              {isBuffering && (
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                  <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+            </div>
+
+            {/* Station Info */}
+            <div 
+              onClick={() => setIsExpanded(true)}
+              className="min-w-0 flex-1 cursor-pointer"
+            >
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs sm:text-sm font-bold text-white truncate hover:text-amber-400 transition-colors">
+                  {activeRadio.name}
+                </span>
+                <span className="px-1.5 py-0.2 bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[9px] font-semibold rounded">
+                  FM
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 truncate">
+                {streamError ? (
+                  <span className="text-rose-400 flex items-center gap-1">
+                    Stream interrupted · Click retry
+                  </span>
+                ) : (
+                  activeRadio.currentProgram || `${activeRadio.language} · ${activeRadio.category}`
+                )}
+              </p>
+            </div>
+
+            {/* Quick Play Controls */}
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+              {streamError ? (
+                <button
+                  onClick={retryPlayback}
+                  title="Retry stream"
+                  className="p-2 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs flex items-center gap-1 transition-colors cursor-pointer"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  <span className="hidden sm:inline">Retry</span>
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={playPrevRadio}
+                    title="Previous station"
+                    className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                  >
+                    <SkipBack className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={toggleRadioPlay}
+                    title={isRadioPlaying ? 'Pause' : 'Play'}
+                    className="w-9 h-9 rounded-full bg-amber-500 hover:bg-amber-400 text-black flex items-center justify-center transition-transform active:scale-95 shadow-md shadow-amber-500/20 cursor-pointer"
+                  >
+                    {isRadioPlaying ? <Pause className="w-4 h-4 fill-black" /> : <Play className="w-4 h-4 fill-black ml-0.5" />}
+                  </button>
+                  <button
+                    onClick={playNextRadio}
+                    title="Next station"
+                    className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                  >
+                    <SkipForward className="w-4 h-4" />
+                  </button>
+                </>
+              )}
+
+              {/* Favorite button */}
+              <button
+                onClick={() => toggleFavorite(activeRadio.id)}
+                title={isFavorite(activeRadio.id) ? 'Remove Favorite' : 'Add to Favorites'}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 transition-colors cursor-pointer"
+              >
+                <Heart className={`w-4 h-4 ${isFavorite(activeRadio.id) ? 'fill-red-500 text-red-500' : ''}`} />
+              </button>
+
+              {/* Collapse to Mini-Player */}
+              <button
+                onClick={() => setIsMinimized(true)}
+                title="Collapse to mini-player"
+                aria-label="Collapse to mini-player"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-amber-400 hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <ChevronDown className="w-4 h-4" />
+              </button>
+
+              {/* Expand / Close */}
+              <button
+                onClick={() => setIsExpanded(true)}
+                title="Expand Details"
+                className="hidden sm:block p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <Maximize2 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={closeRadioPlayer}
+                title="Close Radio"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </aside>
+      )}
 
       {/* Expanded Radio Sheet Modal */}
       {isExpanded && (

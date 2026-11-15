@@ -26,7 +26,8 @@ export type TVCategory =
   | 'Shopping'
   | 'Regional TV'
   | 'YouTube Live'
-  | 'OTT Feeds';
+  | 'OTT Feeds'
+  | '18+ Adult';
 
 // 16 Standardized Radio Categories
 export type RadioCategory =
@@ -187,3 +188,130 @@ export interface RadioPlatform {
 }
 
 export type SleepTimerOption = 0 | 15 | 30 | 45 | 60 | 90;
+
+export interface Adult18DirectoryEntry {
+  id: string;
+  name: string;
+  country: string;
+  categories: string[];
+  isNsfw: boolean;
+  network?: string | null;
+  owners: string[];
+  website?: string | null;
+  launched?: string | null;
+  closed?: string | null;
+  logoUrl?: string;
+  streamUrl?: string;
+  streamFormat?: StreamFormat;
+  quality?: string | null;
+  labels?: string[];
+}
+
+export interface Adult18CatalogResponse {
+  category: {
+    id: string;
+    name: string;
+    description: string;
+  };
+  playlistUrl: string;
+  apiEndpoints: {
+    channels: string;
+    streams: string;
+    logos: string;
+    categories: string;
+  };
+  playableChannels: Channel[];
+  directoryEntries: Adult18DirectoryEntry[];
+  totalDirectoryCount: number;
+  totalPlayableCount: number;
+  cachedAt: string;
+}
+
+export interface CricketMatch {
+  id: string;
+  title: string;
+  teamA: string;
+  teamB: string;
+  codes: string[];
+  format: string;
+  round: string;
+  start: string;
+  venue: string;
+  tournamentName: string;
+  slug: string;
+  watchUrl: string;
+}
+
+export interface CricketNewsItem {
+  title: string;
+  url: string;
+  source: string;
+  image?: string;
+  published: string;
+}
+
+export interface CricketHubResponse {
+  liveStreams: Channel[];
+  replaysAndHighlights: Channel[];
+  matches: CricketMatch[];
+  news: CricketNewsItem[];
+  sources: {
+    cricomboCount: number;
+    cricketOnAirStreamsCount: number;
+    cricketOnAirReplaysCount: number;
+    matchesCount: number;
+    newsCount: number;
+  };
+  fetchedAt: string;
+}
+
+export interface BroadcasterDirectoryRow {
+  region: string;
+  country: string;
+  tvChannels: string;
+  ottPlatforms: string;
+  broadcastType: string;
+  iptvStatus: string;
+  hasPublicIptv: boolean;
+}
+
+export interface IptvOrgCategoryLink {
+  name: string;
+  channelCount: number;
+  playlistUrl: string;
+}
+
+export interface PublicIptvDirectoryResponse {
+  footballCricket: {
+    repoUrl: string;
+    playlistUrl: string;
+    worldCupPlaylistUrl: string;
+    channels: Channel[];
+    directoryRows: BroadcasterDirectoryRow[];
+  };
+  freePublicIptv: {
+    repoUrl: string;
+    presets: Array<{
+      id: string;
+      label: string;
+      url: string;
+    }>;
+    channels: Channel[];
+  };
+  iptvOrgDatabase: {
+    repoUrl: string;
+    masterPlaylistUrl: string;
+    categoryMasterUrl: string;
+    categories: IptvOrgCategoryLink[];
+  };
+  playlistDocs: {
+    docUrl: string;
+    title: string;
+    summary: string;
+    internalRules: string[];
+    internalExample: string;
+    publicExample: string;
+    rawExcerpt: string;
+  };
+  fetchedAt: string;
+}

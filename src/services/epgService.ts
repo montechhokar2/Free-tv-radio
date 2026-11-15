@@ -270,6 +270,7 @@ export function findEpgProgramsForChannel(
   const normBase = (s: string) =>
     s
       .toLowerCase()
+      .replace(/@(uhd|fhd|hd|sd|4k)$/i, '')
       .replace(/\.[a-z0-9]{2,4}$/i, '')
       .replace(/[^a-z0-9+]/g, '')
       .replace(/(uhd|fhd|hd|sd|4k)$/i, '');

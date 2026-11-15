@@ -1,0 +1,186 @@
+name: Android APK Build & Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: 'Publish a GitHub Release with the directly downloadable APK'
+        required: false
+        type: boolean
+        default: true
+      release_tag:
+        description: 'Optional custom release tag (leave default to auto-generate unique tag)'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release-apk:
+    name: Build Signed Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Setup Java 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies & build Vite web app
+        run: |
+          npm ci || npm install
+          npm run build
+
+      - name: Prepare Capacitor Android project
+        run: |
+          npm install --no-save @capacitor/core @capacitor/cli @capacitor/android
+          if [ ! -f capacitor.config.json ] && [ ! -f capacitor.config.ts ]; then
+            cat << 'EOF' > capacitor.config.json
+          {
+            "appId": "live.freetvradio.app",
+            "appName": "Free TV & Radio Live",
+            "webDir": "dist",
+            "android": {
+              "allowMixedContent": true
+            }
+          }
+          EOF
+          fi
+          if [ ! -d android ]; then
+            npx cap add android
+          fi
+          npx cap sync android
+
+          MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
+          if [ -f "$MANIFEST_PATH" ] && ! grep -q 'usesCleartextTraffic' "$MANIFEST_PATH"; then
+            sed -i 's/<application /<application android:usesCleartextTraffic="true" /' "$MANIFEST_PATH"
+          fi
+
+      - name: Build Android Release APK
+        id: build_apk
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Align & Sign Release APK
+        id: sign_apk
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          mkdir -p dist-apk
+          RAW_APK=$(find android/app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          if [ -z "$RAW_APK" ]; then
+            echo "No release APK found in android/app/build/outputs/apk/release"
+            exit 1
+          fi
+
+          BUILD_TOOLS_DIR=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)
+          "$BUILD_TOOLS_DIR/zipalign" -f -p 4 "$RAW_APK" dist-apk/FreeTVRadioLive-aligned.apk
+
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ] && [ -n "$ANDROID_KEY_ALIAS" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > release-keystore.jks
+            KS_FILE="release-keystore.jks"
+            KS_PASS="$ANDROID_KEYSTORE_PASSWORD"
+            KEY_ALIAS="$ANDROID_KEY_ALIAS"
+            KEY_PASS="${ANDROID_KEY_PASSWORD:-$ANDROID_KEYSTORE_PASSWORD}"
+          else
+            echo "No keystore secrets set; generating ephemeral release signing keystore..."
+            KS_FILE="ephemeral-release.p12"
+            KS_PASS="freetvradio2026"
+            KEY_ALIAS="freetvradio"
+            KEY_PASS="freetvradio2026"
+            keytool -genkeypair -v \
+              -storetype PKCS12 \
+              -keystore "$KS_FILE" \
+              -alias "$KEY_ALIAS" \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "$KS_PASS" -keypass "$KEY_PASS" \
+              -dname "CN=Free TV & Radio Live, OU=Mobile, O=Monte Chhokar, L=India, C=IN"
+          fi
+
+          "$BUILD_TOOLS_DIR/apksigner" sign \
+            --ks "$KS_FILE" \
+            --ks-pass "pass:$KS_PASS" \
+            --ks-key-alias "$KEY_ALIAS" \
+            --key-pass "pass:$KEY_PASS" \
+            --out dist-apk/FreeTVRadioLive.apk \
+            dist-apk/FreeTVRadioLive-aligned.apk
+
+          "$BUILD_TOOLS_DIR/apksigner" verify --verbose --print-certs dist-apk/FreeTVRadioLive.apk
+          rm -f dist-apk/FreeTVRadioLive-aligned.apk release-keystore.jks ephemeral-release.p12
+          ls -lh dist-apk/FreeTVRadioLive.apk
+
+      - name: Upload APK as GitHub Actions Artifact
+        id: upload_artifact
+        if: ${{ steps.sign_apk.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: FreeTVRadioLive-apk
+          path: dist-apk/FreeTVRadioLive.apk
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Publish APK to GitHub Releases
+        id: publish_release
+        continue-on-error: true
+        if: ${{ steps.upload_artifact.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.create_release == true) }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          elif [ -n "${{ inputs.release_tag }}" ]; then
+            TAG="${{ inputs.release_tag }}"
+          else
+            TAG="apk-build-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
+          fi
+
+          APK_FILE="dist-apk/FreeTVRadioLive.apk"
+          test -s "$APK_FILE"
+
+          gh --version
+          gh release create "$TAG" "$APK_FILE" \
+            --title "Free TV & Radio Live APK #${GITHUB_RUN_NUMBER}" \
+            --target "${GITHUB_SHA}" \
+            --latest \
+            --notes "Automatically built & signed Android APK (${TAG}) from commit ${GITHUB_SHA}."
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Report APK Download Result
+        if: ${{ always() && steps.upload_artifact.outcome == 'success' }}
+        run: |
+          if [ "${{ steps.publish_release.outcome }}" == "success" ]; then
+            DIRECT_URL="https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/FreeTVRadioLive.apk"
+            echo "### DIRECT APK DOWNLOAD" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Direct APK URL: ${DIRECT_URL}" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Backup Artifact: \`FreeTVRadioLive-apk\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "Direct APK download URL: ${DIRECT_URL}"
+          else
+            echo "Release step failed, but Actions artifact FreeTVRadioLive-apk remains available." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
