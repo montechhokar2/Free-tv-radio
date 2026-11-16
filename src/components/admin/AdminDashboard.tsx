@@ -112,6 +112,7 @@ export const AdminDashboard: React.FC = () => {
   const [searchTable, setSearchTable] = useState('');
   const [filterType, setFilterType] = useState<MediaType | 'all'>('all');
   const [filterCategory, setFilterCategory] = useState<string>('All');
+  const [adminPageLimit, setAdminPageLimit] = useState(30);
 
   // Stream Availability Diagnostics State
   const [testingStreamId, setTestingStreamId] = useState<string | null>(null);
@@ -260,6 +261,25 @@ export const AdminDashboard: React.FC = () => {
     }
   }, [currentRole]);
 
+  // Filtered Channels for Table
+  const filteredChannels = useMemo(() => {
+    return channels.filter(c => {
+      if (filterType !== 'all' && c.type !== filterType) return false;
+      if (filterCategory !== 'All' && c.category !== filterCategory) return false;
+      if (searchTable.trim()) {
+        const q = searchTable.toLowerCase();
+        return (
+          c.name.toLowerCase().includes(q) ||
+          c.category.toLowerCase().includes(q) ||
+          c.language.toLowerCase().includes(q) ||
+          c.country.toLowerCase().includes(q) ||
+          (c.broadcaster && c.broadcaster.toLowerCase().includes(q))
+        );
+      }
+      return true;
+    });
+  }, [channels, filterType, filterCategory, searchTable]);
+
   // ==========================================
   // 1. LOGIN VERIFICATION FLOW
   // ==========================================
@@ -320,37 +340,38 @@ export const AdminDashboard: React.FC = () => {
     };
 
     return (
-      <div className="max-w-lg mx-auto py-12 px-4">
+      <div className="max-w-lg mx-auto py-8 sm:py-12 px-3 sm:px-4">
         {/* Simulated Notification Banner */}
         {simulatedNotification && (
           <div className="mb-4 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-start gap-3 shadow-xl animate-fade-in">
             <Zap className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <p className="font-bold text-white mb-0.5">Verification Code Dispatched</p>
-              <p className="text-amber-200/90">{simulatedNotification}</p>
+              <p className="text-amber-200/90 break-words">{simulatedNotification}</p>
               <button
                 type="button"
                 onClick={() => setOtpInput(generatedOtp)}
-                className="mt-2 text-xs font-bold text-amber-400 underline hover:text-amber-300 cursor-pointer"
+                className="mt-2 min-h-[40px] inline-flex items-center text-xs font-bold text-amber-400 underline hover:text-amber-300 cursor-pointer"
               >
                 Click to Auto-fill Code ({generatedOtp})
               </button>
             </div>
             <button
               onClick={() => setSimulatedNotification(null)}
-              className="text-amber-400/60 hover:text-amber-300 cursor-pointer"
+              aria-label="Dismiss notification"
+              className="w-10 h-10 flex items-center justify-center rounded-xl text-amber-400/70 hover:text-amber-300 cursor-pointer shrink-0"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
         )}
 
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl">
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-8 shadow-2xl">
           <div className="text-center mb-6">
             <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto mb-3 shadow-inner">
               <ShieldCheck className="w-7 h-7" />
             </div>
-            <h2 className="font-display text-2xl font-bold text-white">Secure Admin Broadcast Console</h2>
+            <h2 className="font-display text-xl sm:text-2xl font-bold text-white">Secure Admin Broadcast Console</h2>
             <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
               Login verification through Gmail or Phone Number with Role-Based Access Control (RBAC).
             </p>
@@ -361,7 +382,7 @@ export const AdminDashboard: React.FC = () => {
             <button
               type="button"
               onClick={() => { setAuthMethod('gmail'); setOtpSent(false); setAuthError(''); }}
-              className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`min-h-[44px] flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 authMethod === 'gmail'
                   ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
                   : 'text-slate-400 hover:text-white'
@@ -374,7 +395,7 @@ export const AdminDashboard: React.FC = () => {
             <button
               type="button"
               onClick={() => { setAuthMethod('phone'); setOtpSent(false); setAuthError(''); }}
-              className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`min-h-[44px] flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 authMethod === 'phone'
                   ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
                   : 'text-slate-400 hover:text-white'
@@ -387,7 +408,7 @@ export const AdminDashboard: React.FC = () => {
             <button
               type="button"
               onClick={() => { setAuthMethod('passcode'); setOtpSent(false); setAuthError(''); }}
-              className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`min-h-[44px] flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 authMethod === 'passcode'
                   ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
                   : 'text-slate-400 hover:text-white'
@@ -406,7 +427,7 @@ export const AdminDashboard: React.FC = () => {
             <select
               value={selectedLoginRole}
               onChange={e => setSelectedLoginRole(e.target.value as AdminRole)}
-              className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
+              className="w-full min-h-[44px] px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-base sm:text-xs text-white focus:outline-none focus:border-amber-500"
             >
               <option value="Super Admin">Super Admin (Full Administrative Privileges)</option>
               <option value="Broadcast Operations Manager">Broadcast Operations Manager (Streams, Diagnostics, Catalog)</option>
@@ -429,22 +450,22 @@ export const AdminDashboard: React.FC = () => {
                     value={gmailInput}
                     onChange={e => setGmailInput(e.target.value)}
                     placeholder="e.g. nextdayonlinesales@gmail.com"
-                    className="w-full pl-10 pr-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500"
+                    className="w-full min-h-[44px] pl-10 pr-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-base sm:text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500"
                   />
                 </div>
                 {gmailInput.toLowerCase().includes('nextdayonlinesales@gmail.com') && (
                   <p className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1 font-medium">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Pre-Authorized Master Administrator Account
+                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> Pre-Authorized Master Administrator Account
                   </p>
                 )}
               </div>
 
               {!otpSent ? (
-                <div className="space-y-2 pt-2">
+                <div className="space-y-2.5 pt-2">
                   <button
                     type="button"
                     onClick={handleSendOtp}
-                    className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition-all cursor-pointer flex items-center justify-center gap-2"
+                    className="w-full min-h-[44px] py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition-all cursor-pointer flex items-center justify-center gap-2"
                   >
                     <Mail className="w-4 h-4" />
                     <span>Send 6-Digit Verification Code</span>
@@ -453,7 +474,7 @@ export const AdminDashboard: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleInstantGmailVerify}
-                    className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 transition-all cursor-pointer"
+                    className="w-full min-h-[44px] py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 transition-all cursor-pointer"
                   >
                     1-Click Instant Verify (nextdayonlinesales@gmail.com)
                   </button>
@@ -466,11 +487,12 @@ export const AdminDashboard: React.FC = () => {
                     </label>
                     <input
                       type="text"
+                      inputMode="numeric"
                       maxLength={6}
                       value={otpInput}
                       onChange={e => setOtpInput(e.target.value.replace(/\D/g, ''))}
                       placeholder="e.g. 839214"
-                      className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-center text-lg tracking-widest font-mono text-white focus:outline-none focus:border-amber-500"
+                      className="w-full min-h-[48px] px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-center text-lg tracking-widest font-mono text-white focus:outline-none focus:border-amber-500"
                       autoFocus
                     />
                     {authError && <p className="text-rose-400 text-xs mt-1">{authError}</p>}
@@ -478,7 +500,7 @@ export const AdminDashboard: React.FC = () => {
 
                   <button
                     type="submit"
-                    className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
+                    className="w-full min-h-[44px] py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
                   >
                     Verify Code &amp; Access Admin Console
                   </button>
@@ -486,7 +508,7 @@ export const AdminDashboard: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleSendOtp}
-                    className="w-full text-center text-[11px] text-slate-400 hover:text-white pt-1 cursor-pointer"
+                    className="w-full min-h-[40px] text-center text-xs text-slate-400 hover:text-white pt-1 cursor-pointer"
                   >
                     Resend Code
                   </button>
@@ -502,11 +524,11 @@ export const AdminDashboard: React.FC = () => {
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                   Mobile Phone Number
                 </label>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <select
                     value={phoneCountryCode}
                     onChange={e => setPhoneCountryCode(e.target.value)}
-                    className="w-24 px-2 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
+                    className="w-full sm:w-28 min-h-[44px] px-2.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-base sm:text-xs text-white focus:outline-none focus:border-amber-500"
                   >
                     <option value="+1">+1 (US/CA)</option>
                     <option value="+91">+91 (IN)</option>
@@ -517,14 +539,14 @@ export const AdminDashboard: React.FC = () => {
                     <option value="+33">+33 (FR)</option>
                     <option value="+81">+81 (JP)</option>
                   </select>
-                  <div className="relative flex-1">
+                  <div className="relative flex-1 min-w-0">
                     <Phone className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                     <input
                       type="tel"
                       value={phoneInput}
                       onChange={e => setPhoneInput(e.target.value)}
                       placeholder="555-0199"
-                      className="w-full pl-10 pr-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500"
+                      className="w-full min-h-[44px] pl-10 pr-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-base sm:text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500"
                     />
                   </div>
                 </div>
@@ -534,7 +556,7 @@ export const AdminDashboard: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleSendOtp}
-                  className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition-all cursor-pointer flex items-center justify-center gap-2"
+                  className="w-full min-h-[44px] py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition-all cursor-pointer flex items-center justify-center gap-2"
                 >
                   <Phone className="w-4 h-4" />
                   <span>Send SMS Verification Code</span>
@@ -547,11 +569,12 @@ export const AdminDashboard: React.FC = () => {
                     </label>
                     <input
                       type="text"
+                      inputMode="numeric"
                       maxLength={6}
                       value={otpInput}
                       onChange={e => setOtpInput(e.target.value.replace(/\D/g, ''))}
                       placeholder="e.g. 839214"
-                      className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-center text-lg tracking-widest font-mono text-white focus:outline-none focus:border-amber-500"
+                      className="w-full min-h-[48px] px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-center text-lg tracking-widest font-mono text-white focus:outline-none focus:border-amber-500"
                       autoFocus
                     />
                     {authError && <p className="text-rose-400 text-xs mt-1">{authError}</p>}
@@ -559,7 +582,7 @@ export const AdminDashboard: React.FC = () => {
 
                   <button
                     type="submit"
-                    className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
+                    className="w-full min-h-[44px] py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
                   >
                     Verify SMS Code &amp; Enter
                   </button>
@@ -567,7 +590,7 @@ export const AdminDashboard: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleSendOtp}
-                    className="w-full text-center text-[11px] text-slate-400 hover:text-white pt-1 cursor-pointer"
+                    className="w-full min-h-[40px] text-center text-xs text-slate-400 hover:text-white pt-1 cursor-pointer"
                   >
                     Resend SMS
                   </button>
@@ -590,7 +613,7 @@ export const AdminDashboard: React.FC = () => {
                     value={adminPassword}
                     onChange={e => setAdminPassword(e.target.value)}
                     placeholder="Enter security key (admin123)"
-                    className="w-full pl-10 pr-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500"
+                    className="w-full min-h-[44px] pl-10 pr-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-base sm:text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500"
                     autoFocus
                   />
                 </div>
@@ -599,7 +622,7 @@ export const AdminDashboard: React.FC = () => {
 
               <button
                 type="submit"
-                className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
+                className="w-full min-h-[44px] py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
               >
                 Sign In to Console
               </button>
@@ -614,7 +637,7 @@ export const AdminDashboard: React.FC = () => {
                 loginAsAdmin('admin123', 'nextdayonlinesales@gmail.com', 'Super Admin');
                 setCurrentRole('Super Admin');
               }}
-              className="text-amber-400 hover:underline font-bold cursor-pointer"
+              className="min-h-[40px] inline-flex items-center text-amber-400 hover:underline font-bold cursor-pointer"
             >
               1-Click Enter as Super Admin
             </button>
@@ -798,55 +821,37 @@ export const AdminDashboard: React.FC = () => {
     e.target.value = '';
   };
 
-  // Filtered Channels for Table
-  const filteredChannels = useMemo(() => {
-    return channels.filter(c => {
-      if (filterType !== 'all' && c.type !== filterType) return false;
-      if (filterCategory !== 'All' && c.category !== filterCategory) return false;
-      if (searchTable.trim()) {
-        const q = searchTable.toLowerCase();
-        return (
-          c.name.toLowerCase().includes(q) || 
-          c.category.toLowerCase().includes(q) || 
-          c.language.toLowerCase().includes(q) ||
-          c.country.toLowerCase().includes(q) ||
-          (c.broadcaster && c.broadcaster.toLowerCase().includes(q))
-        );
-      }
-      return true;
-    });
-  }, [channels, filterType, filterCategory, searchTable]);
-
   const tvCount = channels.filter(c => c.type === 'tv').length;
   const radioCount = channels.filter(c => c.type === 'radio').length;
-  const featuredCount = channels.filter(c => c.isFeatured).length;
+  const visibleAdminChannels = filteredChannels.slice(0, adminPageLimit);
+  const hasMoreAdminChannels = filteredChannels.length > adminPageLimit;
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-5 sm:space-y-6 pb-8">
       {/* Toast Alert */}
       {toastMessage && (
-        <div className="fixed top-20 right-6 z-50 bg-amber-500 text-slate-950 px-4 py-2.5 rounded-xl font-bold text-xs shadow-2xl flex items-center gap-2 animate-bounce">
-          <Check className="w-4 h-4" />
-          <span>{toastMessage}</span>
+        <div className="fixed top-16 inset-x-4 sm:inset-x-auto sm:right-6 z-50 bg-amber-500 text-slate-950 px-4 py-2.5 rounded-xl font-bold text-xs shadow-2xl flex items-center gap-2 animate-fade-in">
+          <Check className="w-4 h-4 shrink-0" />
+          <span className="truncate">{toastMessage}</span>
         </div>
       )}
 
       {/* ADMIN HEADER & RBAC ROLE SWITCHER */}
-      <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+      <div className="p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-3 min-w-0">
             <div className="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
               <ShieldCheck className="w-6 h-6" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="font-display text-xl sm:text-2xl font-extrabold text-white">
+                <h1 className="font-display text-lg sm:text-2xl font-extrabold text-white">
                   Admin Broadcast Console
                 </h1>
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20">
                   {currentRole}
                 </span>
-                <span className="text-[11px] text-slate-400 font-mono">
+                <span className="text-[11px] text-slate-400 font-mono truncate max-w-full">
                   {user.email || 'nextdayonlinesales@gmail.com'}
                 </span>
               </div>
@@ -859,7 +864,7 @@ export const AdminDashboard: React.FC = () => {
           {/* Quick Actions & Role Switcher */}
           <div className="flex flex-wrap items-center gap-2">
             {/* Role Switcher */}
-            <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1">
+            <div className="min-h-[44px] flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5">
               <span className="text-[10px] font-bold uppercase text-slate-400">Role:</span>
               <select
                 value={currentRole}
@@ -883,14 +888,14 @@ export const AdminDashboard: React.FC = () => {
               <>
                 <button
                   onClick={() => setIsAddTVModalOpen(true)}
-                  className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-md shadow-amber-500/20 cursor-pointer"
+                  className="min-h-[44px] px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-md shadow-amber-500/20 cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Add TV Channel</span>
                 </button>
                 <button
                   onClick={() => setIsAddRadioModalOpen(true)}
-                  className="px-3.5 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-md shadow-sky-500/20 cursor-pointer"
+                  className="min-h-[44px] px-3.5 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-md shadow-sky-500/20 cursor-pointer"
                 >
                   <Radio className="w-3.5 h-3.5" />
                   <span>Add Radio Station</span>
@@ -900,7 +905,7 @@ export const AdminDashboard: React.FC = () => {
 
             <button
               onClick={logoutAdmin}
-              className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-white text-xs font-semibold cursor-pointer"
+              className="min-h-[44px] px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-white text-xs font-semibold cursor-pointer"
             >
               Exit Admin
             </button>
@@ -908,11 +913,11 @@ export const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* SUB-TABS NAVIGATION (ALL 7 MANDATORY SECTIONS) */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 border-b border-slate-800">
+      {/* SUB-TABS NAVIGATION (ALL 8 SECTIONS) */}
+      <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-2 border-b border-slate-800">
         <button
           onClick={() => setActiveTab('streams')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs shrink-0 transition-all cursor-pointer ${
+          className={`min-h-[44px] flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shrink-0 transition-all cursor-pointer ${
             activeTab === 'streams'
               ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
               : 'text-slate-400 hover:text-white hover:bg-slate-900'
@@ -924,7 +929,7 @@ export const AdminDashboard: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('logos')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs shrink-0 transition-all cursor-pointer ${
+          className={`min-h-[44px] flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shrink-0 transition-all cursor-pointer ${
             activeTab === 'logos'
               ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
               : 'text-slate-400 hover:text-white hover:bg-slate-900'
@@ -936,7 +941,7 @@ export const AdminDashboard: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('categories')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs shrink-0 transition-all cursor-pointer ${
+          className={`min-h-[44px] flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shrink-0 transition-all cursor-pointer ${
             activeTab === 'categories'
               ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
               : 'text-slate-400 hover:text-white hover:bg-slate-900'
@@ -948,7 +953,7 @@ export const AdminDashboard: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('countries')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs shrink-0 transition-all cursor-pointer ${
+          className={`min-h-[44px] flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shrink-0 transition-all cursor-pointer ${
             activeTab === 'countries'
               ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
               : 'text-slate-400 hover:text-white hover:bg-slate-900'
@@ -960,7 +965,7 @@ export const AdminDashboard: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('health')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs shrink-0 transition-all cursor-pointer ${
+          className={`min-h-[44px] flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shrink-0 transition-all cursor-pointer ${
             activeTab === 'health'
               ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
               : 'text-slate-400 hover:text-white hover:bg-slate-900'
@@ -972,7 +977,7 @@ export const AdminDashboard: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('monetization')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs shrink-0 transition-all cursor-pointer ${
+          className={`min-h-[44px] flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shrink-0 transition-all cursor-pointer ${
             activeTab === 'monetization'
               ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
               : 'text-slate-400 hover:text-white hover:bg-slate-900'
@@ -984,7 +989,7 @@ export const AdminDashboard: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('analytics')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs shrink-0 transition-all cursor-pointer ${
+          className={`min-h-[44px] flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shrink-0 transition-all cursor-pointer ${
             activeTab === 'analytics'
               ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
               : 'text-slate-400 hover:text-white hover:bg-slate-900'
@@ -996,7 +1001,7 @@ export const AdminDashboard: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('rbac')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs shrink-0 transition-all cursor-pointer ${
+          className={`min-h-[44px] flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shrink-0 transition-all cursor-pointer ${
             activeTab === 'rbac'
               ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
               : 'text-slate-400 hover:text-white hover:bg-slate-900'
@@ -1037,27 +1042,33 @@ export const AdminDashboard: React.FC = () => {
       {activeTab === 'streams' && (
         <div className="space-y-4">
           {/* Actions Toolbar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-slate-900/70 border border-slate-800 rounded-2xl">
-            <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[280px]">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-3.5 bg-slate-900/70 border border-slate-800 rounded-2xl">
+            <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
               {/* Search */}
-              <div className="relative flex-1 min-w-[180px]">
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <div className="relative w-full sm:flex-1 sm:min-w-[180px]">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   value={searchTable}
-                  onChange={e => setSearchTable(e.target.value)}
+                  onChange={e => {
+                    setSearchTable(e.target.value);
+                    setAdminPageLimit(30);
+                  }}
                   placeholder="Search stream name, category, broadcaster..."
-                  className="w-full pl-8 pr-3 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-500"
+                  className="w-full min-h-[44px] pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-base sm:text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-500"
                 />
               </div>
 
               {/* Media Type Filter */}
-              <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 rounded-xl p-0.5">
+              <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 rounded-xl p-1">
                 {(['all', 'tv', 'radio'] as const).map(type => (
                   <button
                     key={type}
-                    onClick={() => setFilterType(type)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase transition-all cursor-pointer ${
+                    onClick={() => {
+                      setFilterType(type);
+                      setAdminPageLimit(30);
+                    }}
+                    className={`min-h-[38px] px-3 py-1 rounded-lg text-xs font-bold uppercase transition-all cursor-pointer ${
                       filterType === type ? 'bg-amber-500 text-slate-950' : 'text-slate-400 hover:text-white'
                     }`}
                   >
@@ -1069,8 +1080,11 @@ export const AdminDashboard: React.FC = () => {
               {/* Category Filter */}
               <select
                 value={filterCategory}
-                onChange={e => setFilterCategory(e.target.value)}
-                className="px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
+                onChange={e => {
+                  setFilterCategory(e.target.value);
+                  setAdminPageLimit(30);
+                }}
+                className="min-h-[44px] flex-1 sm:flex-none px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-base sm:text-xs text-white focus:outline-none focus:border-amber-500"
               >
                 <option value="All">All Categories</option>
                 {ALL_CATEGORIES.filter(c => c !== 'All').map(c => (
@@ -1080,19 +1094,19 @@ export const AdminDashboard: React.FC = () => {
             </div>
 
             {/* Import / Export / Factory Reset */}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={handleExportJSON}
-                className="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 hover:bg-slate-800 text-slate-300 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                className="min-h-[44px] px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 hover:bg-slate-800 text-slate-300 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
                 title="Export entire channel catalog to JSON"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Export</span>
+                <span>Export</span>
               </button>
 
-              <label className="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 hover:bg-slate-800 text-slate-300 text-xs font-semibold flex items-center gap-1.5 cursor-pointer">
+              <label className="min-h-[44px] px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 hover:bg-slate-800 text-slate-300 text-xs font-semibold flex items-center gap-1.5 cursor-pointer">
                 <Upload className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Import</span>
+                <span>Import</span>
                 <input
                   type="file"
                   accept=".json"
@@ -1104,19 +1118,129 @@ export const AdminDashboard: React.FC = () => {
               {permissions.canDeleteStreams && (
                 <button
                   onClick={() => setShowResetConfirm(true)}
-                  className="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-rose-900 text-rose-400 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                  className="min-h-[44px] px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 hover:border-rose-900 text-rose-400 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
                   title="Reset to original verified channels"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Reset Defaults</span>
+                  <span>Reset Defaults</span>
                 </button>
               )}
             </div>
           </div>
 
-          {/* Streams Table */}
+          {/* Mobile Card Catalog (< md) + Desktop/Tablet Table (>= md) */}
           <div className="border border-slate-800 rounded-2xl overflow-hidden bg-slate-900">
-            <div className="overflow-x-auto">
+            {/* Mobile Stacked Cards */}
+            <div className="md:hidden divide-y divide-slate-800/70">
+              {visibleAdminChannels.length === 0 ? (
+                <div className="py-10 px-4 text-center text-xs text-slate-500">
+                  No channels match the filter criteria.
+                </div>
+              ) : (
+                visibleAdminChannels.map(ch => {
+                  const status = streamStatuses[ch.id];
+                  return (
+                    <div key={ch.id} className="p-3.5 space-y-3">
+                      <div className="flex items-start justify-between gap-2.5">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <img
+                            src={ch.logoUrl}
+                            alt={ch.name}
+                            loading="lazy"
+                            className="w-10 h-10 rounded-xl object-cover bg-slate-950 border border-slate-800 shrink-0"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=160&auto=format&fit=crop&q=80';
+                            }}
+                          />
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-sm text-white truncate">{ch.name}</span>
+                              {ch.isFeatured && (
+                                <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 shrink-0" />
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-400 truncate">
+                              {ch.broadcaster || 'Verified Broadcaster'} · {ch.country} ({ch.language})
+                            </p>
+                          </div>
+                        </div>
+
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase shrink-0 ${
+                          ch.type === 'tv'
+                            ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                            : 'bg-sky-500/10 text-sky-400 border border-sky-500/20'
+                        }`}>
+                          {ch.type === 'tv' ? <Tv className="w-3 h-3" /> : <Radio className="w-3 h-3" />}
+                          <span>{ch.type}</span>
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="px-2 py-1 rounded-lg bg-slate-950 border border-slate-800 text-[11px] text-slate-300 font-medium">
+                            {ch.category}
+                          </span>
+                          {status ? (
+                            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold ${
+                              status.ok ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
+                            }`}>
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>{status.statusText}</span>
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => testStreamAvailability(ch)}
+                              disabled={testingStreamId === ch.id}
+                              className="min-h-[36px] px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-950 border border-slate-800 hover:border-amber-500 text-slate-300 cursor-pointer flex items-center gap-1"
+                            >
+                              <Zap className="w-3 h-3 text-amber-400" />
+                              <span>{testingStreamId === ch.id ? 'Testing...' : 'Ping Test'}</span>
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => toggleFeaturedChannel(ch.id)}
+                            aria-label="Toggle Featured"
+                            className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-all cursor-pointer ${
+                              ch.isFeatured
+                                ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                                : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-300'
+                            }`}
+                          >
+                            <Star className="w-4 h-4" />
+                          </button>
+
+                          {permissions.canManageStreams && (
+                            <button
+                              onClick={() => setEditingChannel(ch)}
+                              aria-label="Edit Stream"
+                              className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-950 border border-slate-800 hover:border-amber-500 text-slate-300 hover:text-amber-400 transition-all cursor-pointer"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                          )}
+
+                          {permissions.canDeleteStreams && (
+                            <button
+                              onClick={() => setChannelToDelete(ch)}
+                              aria-label="Delete Channel"
+                              className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-950 border border-slate-800 hover:border-rose-600 text-slate-400 hover:text-rose-400 transition-all cursor-pointer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Desktop & Tablet Data Table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-300">
                 <thead className="bg-slate-950/80 text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-800">
                   <tr>
@@ -1129,14 +1253,14 @@ export const AdminDashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
-                  {filteredChannels.length === 0 ? (
+                  {visibleAdminChannels.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="py-8 text-center text-slate-500">
                         No channels match the filter criteria.
                       </td>
                     </tr>
                   ) : (
-                    filteredChannels.map(ch => {
+                    visibleAdminChannels.map(ch => {
                       const status = streamStatuses[ch.id];
                       return (
                         <tr key={ch.id} className="hover:bg-slate-800/40 transition-colors">
@@ -1146,6 +1270,7 @@ export const AdminDashboard: React.FC = () => {
                               <img
                                 src={ch.logoUrl}
                                 alt={ch.name}
+                                loading="lazy"
                                 className="w-8 h-8 rounded-lg object-cover bg-slate-950 border border-slate-800 shrink-0"
                                 onError={(e) => {
                                   (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=160&auto=format&fit=crop&q=80';
@@ -1153,7 +1278,7 @@ export const AdminDashboard: React.FC = () => {
                               />
                               <div className="min-w-0">
                                 <div className="flex items-center gap-1.5">
-                                  <span className="font-bold text-white truncate max-w-[160px] sm:max-w-[220px]">
+                                  <span className="font-bold text-white truncate max-w-[180px] lg:max-w-[220px]">
                                     {ch.name}
                                   </span>
                                   {ch.isFeatured && (
@@ -1205,7 +1330,7 @@ export const AdminDashboard: React.FC = () => {
                               <button
                                 onClick={() => testStreamAvailability(ch)}
                                 disabled={testingStreamId === ch.id}
-                                className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-950 border border-slate-800 hover:border-amber-500 text-slate-400 hover:text-white transition-all cursor-pointer flex items-center gap-1"
+                                className="min-h-[34px] px-2.5 py-1 rounded text-[10px] font-semibold bg-slate-950 border border-slate-800 hover:border-amber-500 text-slate-400 hover:text-white transition-all cursor-pointer flex items-center gap-1"
                               >
                                 <Zap className="w-2.5 h-2.5 text-amber-400" />
                                 <span>{testingStreamId === ch.id ? 'Testing...' : 'Ping Test'}</span>
@@ -1215,11 +1340,11 @@ export const AdminDashboard: React.FC = () => {
 
                           {/* Actions */}
                           <td className="py-3 px-4 text-right">
-                            <div className="flex items-center justify-end gap-1">
+                            <div className="flex items-center justify-end gap-1.5">
                               {/* Toggle Featured */}
                               <button
                                 onClick={() => toggleFeaturedChannel(ch.id)}
-                                className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                                className={`p-2 rounded-lg border transition-all cursor-pointer ${
                                   ch.isFeatured
                                     ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
                                     : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-300'
@@ -1233,7 +1358,7 @@ export const AdminDashboard: React.FC = () => {
                               {permissions.canManageStreams && (
                                 <button
                                   onClick={() => setEditingChannel(ch)}
-                                  className="p-1.5 rounded-lg bg-slate-950 border border-slate-800 hover:border-amber-500 text-slate-300 hover:text-amber-400 transition-all cursor-pointer"
+                                  className="p-2 rounded-lg bg-slate-950 border border-slate-800 hover:border-amber-500 text-slate-300 hover:text-amber-400 transition-all cursor-pointer"
                                   title="Edit Stream Information"
                                 >
                                   <Edit3 className="w-3.5 h-3.5" />
@@ -1244,7 +1369,7 @@ export const AdminDashboard: React.FC = () => {
                               {permissions.canDeleteStreams && (
                                 <button
                                   onClick={() => setChannelToDelete(ch)}
-                                  className="p-1.5 rounded-lg bg-slate-950 border border-slate-800 hover:border-rose-600 text-slate-400 hover:text-rose-400 transition-all cursor-pointer"
+                                  className="p-2 rounded-lg bg-slate-950 border border-slate-800 hover:border-rose-600 text-slate-400 hover:text-rose-400 transition-all cursor-pointer"
                                   title="Delete Channel"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
@@ -1259,6 +1384,17 @@ export const AdminDashboard: React.FC = () => {
                 </tbody>
               </table>
             </div>
+
+            {hasMoreAdminChannels && (
+              <div className="p-4 border-t border-slate-800 bg-slate-950/50 flex justify-center">
+                <button
+                  onClick={() => setAdminPageLimit(prev => prev + 30)}
+                  className="min-h-[44px] px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-amber-400 cursor-pointer"
+                >
+                  Load More Streams ({filteredChannels.length - visibleAdminChannels.length} remaining)
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1279,13 +1415,13 @@ export const AdminDashboard: React.FC = () => {
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2.5">
               {/* Dark vs Light Preview Toggle */}
-              <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 rounded-xl p-1 text-xs font-semibold">
-                <span className="text-[10px] text-slate-500 uppercase px-1">Canvas:</span>
+              <div className="min-h-[44px] flex items-center gap-1 bg-slate-950 border border-slate-800 rounded-xl p-1 text-xs font-semibold">
+                <span className="text-[10px] text-slate-500 uppercase px-1.5">Canvas:</span>
                 <button
                   onClick={() => setLogoThemePreview('dark')}
-                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                  className={`min-h-[34px] px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
                     logoThemePreview === 'dark' ? 'bg-slate-800 text-white' : 'text-slate-400'
                   }`}
                 >
@@ -1293,7 +1429,7 @@ export const AdminDashboard: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setLogoThemePreview('light')}
-                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                  className={`min-h-[34px] px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
                     logoThemePreview === 'light' ? 'bg-amber-400 text-slate-950 font-bold' : 'text-slate-400'
                   }`}
                 >
@@ -1305,7 +1441,7 @@ export const AdminDashboard: React.FC = () => {
               <select
                 value={logoFilter}
                 onChange={e => setLogoFilter(e.target.value as any)}
-                className="px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
+                className="min-h-[44px] px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-base sm:text-xs text-white focus:outline-none focus:border-amber-500"
               >
                 <option value="all">All Logos ({channels.length})</option>
                 <option value="missing">Using Fallback Photos</option>
@@ -1315,7 +1451,7 @@ export const AdminDashboard: React.FC = () => {
           </div>
 
           {/* Logo Cards Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
             {channels
               .filter(c => {
                 if (logoFilter === 'missing') {
@@ -1341,6 +1477,7 @@ export const AdminDashboard: React.FC = () => {
                       <img
                         src={ch.logoUrl}
                         alt={ch.name}
+                        loading="lazy"
                         className="max-h-full max-w-full object-contain"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=160&auto=format&fit=crop&q=80';
@@ -1351,7 +1488,7 @@ export const AdminDashboard: React.FC = () => {
                     <span className="text-[10px] text-slate-400 block truncate">{ch.category} · {ch.country}</span>
                   </div>
 
-                  <div className="pt-2 mt-2 border-t border-slate-800/40 flex items-center justify-between">
+                  <div className="pt-2 mt-2 border-t border-slate-800/40 flex items-center justify-between gap-2">
                     <span className="text-[9px] uppercase font-mono text-slate-400">{ch.type}</span>
                     {permissions.canManageLogos && (
                       <button
@@ -1359,7 +1496,7 @@ export const AdminDashboard: React.FC = () => {
                           setEditingLogoChannel(ch);
                           setTempLogoUrl(ch.logoUrl);
                         }}
-                        className="text-[11px] font-bold text-amber-400 hover:underline cursor-pointer"
+                        className="min-h-[34px] px-1.5 text-[11px] font-bold text-amber-500 hover:underline cursor-pointer"
                       >
                         Change Logo
                       </button>
@@ -1377,7 +1514,7 @@ export const AdminDashboard: React.FC = () => {
       {activeTab === 'categories' && (
         <div className="space-y-6">
           {/* Add Custom Category Toolbar */}
-          <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h3 className="font-display text-base font-bold text-white flex items-center gap-2">
                 <Layers className="w-4 h-4 text-amber-400" />
@@ -1389,13 +1526,13 @@ export const AdminDashboard: React.FC = () => {
             </div>
 
             {permissions.canManageCategories && (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <input
                   type="text"
                   value={newCategoryName}
                   onChange={e => setNewCategoryName(e.target.value)}
                   placeholder="New Category Name..."
-                  className="px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-500"
+                  className="min-h-[44px] px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-base sm:text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-500"
                 />
                 <button
                   onClick={() => {
@@ -1405,7 +1542,7 @@ export const AdminDashboard: React.FC = () => {
                       setNewCategoryName('');
                     }
                   }}
-                  className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-xl cursor-pointer"
+                  className="min-h-[44px] px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-xl cursor-pointer shrink-0"
                 >
                   Add Category
                 </button>
@@ -1581,11 +1718,11 @@ export const AdminDashboard: React.FC = () => {
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={runBulkHealthCheck}
                   disabled={isBulkTesting}
-                  className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer"
+                  className="min-h-[44px] px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${isBulkTesting ? 'animate-spin' : ''}`} />
                   <span>{isBulkTesting ? `Scanning (${bulkProgress}%)` : 'Run Bulk Health Check'}</span>
@@ -1594,7 +1731,7 @@ export const AdminDashboard: React.FC = () => {
                 {permissions.canDeleteStreams && (
                   <button
                     onClick={() => setShowPurgeConfirm(true)}
-                    className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+                    className="min-h-[44px] px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>Remove Broken Streams</span>
@@ -1606,7 +1743,7 @@ export const AdminDashboard: React.FC = () => {
             {/* Bulk Test Progress Bar */}
             {isBulkTesting && (
               <div className="space-y-1.5 pt-2">
-                <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 font-mono">
                   <span>Diagnostic Progress: {bulkProgress}%</span>
                   <span>Scanning broadcaster edge endpoints</span>
                 </div>
@@ -1621,7 +1758,7 @@ export const AdminDashboard: React.FC = () => {
           </div>
 
           {/* Health Diagnostics Table */}
-          <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
+          <div className="p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
             <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
               <Zap className="w-4 h-4 text-amber-400" />
               <span>Real-Time Latency Monitor</span>
@@ -1631,11 +1768,11 @@ export const AdminDashboard: React.FC = () => {
               {channels.slice(0, 15).map(ch => {
                 const status = streamStatuses[ch.id];
                 return (
-                  <div key={ch.id} className="py-2.5 flex items-center justify-between gap-3 text-xs">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className={`w-2 h-2 rounded-full ${status?.ok !== false ? 'bg-emerald-400' : 'bg-rose-500'} animate-pulse`} />
-                      <span className="font-semibold text-white truncate max-w-[200px] sm:max-w-xs">{ch.name}</span>
-                      <span className="text-[10px] text-slate-400 uppercase font-mono">{ch.streamFormat}</span>
+                  <div key={ch.id} className="py-2.5 flex flex-wrap items-center justify-between gap-2.5 text-xs">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <div className={`w-2 h-2 rounded-full shrink-0 ${status?.ok !== false ? 'bg-emerald-400' : 'bg-rose-500'} animate-pulse`} />
+                      <span className="font-semibold text-white truncate">{ch.name}</span>
+                      <span className="text-[10px] text-slate-400 uppercase font-mono shrink-0">{ch.streamFormat}</span>
                     </div>
 
                     <div className="flex items-center gap-3 shrink-0">
@@ -1645,7 +1782,7 @@ export const AdminDashboard: React.FC = () => {
                       <button
                         onClick={() => testStreamAvailability(ch)}
                         disabled={testingStreamId === ch.id}
-                        className="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 hover:border-amber-500 text-[11px] text-slate-300 font-medium cursor-pointer"
+                        className="min-h-[38px] px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 hover:border-amber-500 text-[11px] text-slate-300 font-medium cursor-pointer"
                       >
                         {testingStreamId === ch.id ? 'Pinging...' : 'Ping Probe'}
                       </button>
@@ -1738,14 +1875,14 @@ export const AdminDashboard: React.FC = () => {
 
             {/* Master Ad Toggles */}
             <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-bold text-white">Global Banner &amp; Native Ad Display</p>
                   <p className="text-[11px] text-slate-400">Controls banner visibility across home screen, TV player, and radio</p>
                 </div>
                 <button
                   onClick={toggleMonetizationAds}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
                     monetization.adsEnabled
                       ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
                       : 'bg-slate-800 text-slate-400'
@@ -1755,14 +1892,14 @@ export const AdminDashboard: React.FC = () => {
                 </button>
               </div>
 
-              <div className="flex items-center justify-between pt-3 border-t border-slate-800">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-800">
                 <div>
                   <p className="text-xs font-bold text-white">Premium Ad-Free Subscriber Mode</p>
                   <p className="text-[11px] text-slate-400">Simulates VIP subscriber experience with 100% ad-free playback</p>
                 </div>
                 <button
                   onClick={togglePremiumSubscription}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
                     monetization.isPremium
                       ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
                       : 'bg-slate-800 text-slate-400'
@@ -1899,8 +2036,39 @@ export const AdminDashboard: React.FC = () => {
               Granular access policies protecting broadcast manifest integrity, ad monetizations, and catalog modifications.
             </p>
 
-            {/* RBAC Matrix Table */}
-            <div className="border border-slate-800 rounded-xl overflow-hidden mt-4">
+            {/* Mobile RBAC Role Cards (< md) */}
+            <div className="md:hidden space-y-2.5 mt-4">
+              {[
+                { name: 'Super Admin', perms: ['Streams: Full', 'Delete: Full', 'Diagnostics: Full', 'Logos: Full', 'Monetization: Full', 'Users: Full'], active: currentRole === 'Super Admin' },
+                { name: 'Broadcast Operator', perms: ['Streams: Yes', 'Delete: Yes', 'Diagnostics: Yes', 'Logos: Yes', 'Monetization: —', 'Users: View'], active: currentRole === 'Broadcast Operations Manager' },
+                { name: 'Content Editor', perms: ['Streams: Edit', 'Delete: —', 'Diagnostics: —', 'Logos: Yes', 'Monetization: —', 'Users: —'], active: currentRole === 'Content Editor' },
+                { name: 'Monetization Auditor', perms: ['Streams: —', 'Delete: —', 'Diagnostics: —', 'Logos: —', 'Monetization: Full', 'Users: Full'], active: currentRole === 'Monetization Auditor' }
+              ].map(role => (
+                <div
+                  key={role.name}
+                  className={`p-3.5 rounded-xl border space-y-2 ${
+                    role.active ? 'bg-amber-500/10 border-amber-500/30' : 'bg-slate-950 border-slate-800'
+                  }`}
+                >
+                  <p className="text-xs font-bold text-white">{role.name}</p>
+                  <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+                    {role.perms.map(p => (
+                      <span
+                        key={p}
+                        className={`px-2 py-1 rounded-lg bg-slate-900 border border-slate-800 ${
+                          p.endsWith('—') ? 'text-slate-500' : 'text-emerald-400 font-medium'
+                        }`}
+                      >
+                        {p}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop & Tablet RBAC Matrix Table */}
+            <div className="hidden md:block border border-slate-800 rounded-xl overflow-x-auto mt-4">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-950 text-slate-400 text-[10px] uppercase font-bold border-b border-slate-800">
                   <tr>
@@ -1956,7 +2124,7 @@ export const AdminDashboard: React.FC = () => {
           </div>
 
           {/* Parental Controls Section */}
-          <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
+          <div className="p-4 sm:p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
             <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
               <Lock className="w-4 h-4 text-amber-400" />
               <span>Parental Controls &amp; Master Safety PIN</span>
@@ -1968,14 +2136,15 @@ export const AdminDashboard: React.FC = () => {
                 <p className="text-[11px] text-slate-400">Restricts sensitive content and category browsing</p>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <input
                   type="password"
+                  inputMode="numeric"
                   maxLength={4}
                   value={newPin}
                   onChange={e => setNewPin(e.target.value.replace(/\D/g, ''))}
                   placeholder="0000"
-                  className="w-24 px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white text-center tracking-widest font-mono"
+                  className="w-24 min-h-[44px] px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-base sm:text-xs text-white text-center tracking-widest font-mono"
                 />
                 <button
                   onClick={() => {
@@ -1987,7 +2156,7 @@ export const AdminDashboard: React.FC = () => {
                       showToast('Please enter a 4-digit numeric PIN');
                     }
                   }}
-                  className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs cursor-pointer"
+                  className="min-h-[44px] px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs cursor-pointer"
                 >
                   Set PIN
                 </button>
@@ -1997,7 +2166,7 @@ export const AdminDashboard: React.FC = () => {
                       unlockWithPin('0000');
                       showToast('Parental lock overridden for current session.');
                     }}
-                    className="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold cursor-pointer"
+                    className="min-h-[44px] px-3.5 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold cursor-pointer"
                   >
                     Unlock
                   </button>
@@ -2012,20 +2181,20 @@ export const AdminDashboard: React.FC = () => {
       {/* MODAL 1: ADD TV CHANNEL MODAL */}
       {/* ==================================================== */}
       {isAddTVModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
-              <h3 className="font-display text-lg font-bold text-white flex items-center gap-2">
+              <h3 className="font-display text-base sm:text-lg font-bold text-white flex items-center gap-2">
                 <Tv className="w-5 h-5 text-amber-400" />
                 <span>Add International TV Channel</span>
               </h3>
-              <button onClick={() => setIsAddTVModalOpen(false)} className="text-slate-400 hover:text-white cursor-pointer">
+              <button onClick={() => setIsAddTVModalOpen(false)} aria-label="Close modal" className="w-10 h-10 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleAddTVSubmit} className="space-y-3.5 text-xs">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-300 font-semibold mb-1">Channel Name *</label>
                   <input
@@ -2034,7 +2203,7 @@ export const AdminDashboard: React.FC = () => {
                     value={tvFormData.name}
                     onChange={e => setTvFormData({ ...tvFormData, name: e.target.value })}
                     placeholder="e.g. DD Sports 2 HD"
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-amber-500"
+                    className="w-full min-h-[44px] px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-base sm:text-xs text-white focus:outline-none focus:border-amber-500"
                   />
                 </div>
                 <div>
@@ -2044,18 +2213,18 @@ export const AdminDashboard: React.FC = () => {
                     value={tvFormData.broadcaster}
                     onChange={e => setTvFormData({ ...tvFormData, broadcaster: e.target.value })}
                     placeholder="e.g. Prasar Bharati"
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-amber-500"
+                    className="w-full min-h-[44px] px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-base sm:text-xs text-white focus:outline-none focus:border-amber-500"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-300 font-semibold mb-1">TV Category</label>
                   <select
                     value={tvFormData.category}
                     onChange={e => setTvFormData({ ...tvFormData, category: e.target.value as ChannelCategory })}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-amber-500"
+                    className="w-full min-h-[44px] px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-base sm:text-xs text-white focus:outline-none focus:border-amber-500"
                   >
                     {TV_CATEGORIES_LIST.filter(c => c !== 'All').map(cat => (
                       <option key={cat} value={cat}>{cat}</option>
@@ -2067,7 +2236,7 @@ export const AdminDashboard: React.FC = () => {
                   <select
                     value={tvFormData.streamFormat}
                     onChange={e => setTvFormData({ ...tvFormData, streamFormat: e.target.value as StreamFormat })}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-amber-500"
+                    className="w-full min-h-[44px] px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-base sm:text-xs text-white focus:outline-none focus:border-amber-500"
                   >
                     <option value="hls">HLS (.m3u8)</option>
                     <option value="mpd">MPEG-DASH (.mpd)</option>
@@ -2076,13 +2245,13 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-300 font-semibold mb-1">Country</label>
                   <select
                     value={tvFormData.country}
                     onChange={e => setTvFormData({ ...tvFormData, country: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-amber-500"
+                    className="w-full min-h-[44px] px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-base sm:text-xs text-white focus:outline-none focus:border-amber-500"
                   >
                     {ALL_COUNTRIES.filter(c => c !== 'All').map(c => (
                       <option key={c} value={c}>{c}</option>
@@ -2094,7 +2263,7 @@ export const AdminDashboard: React.FC = () => {
                   <select
                     value={tvFormData.language}
                     onChange={e => setTvFormData({ ...tvFormData, language: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-amber-500"
+                    className="w-full min-h-[44px] px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-base sm:text-xs text-white focus:outline-none focus:border-amber-500"
                   >
                     {ALL_LANGUAGES.filter(l => l !== 'All').map(l => (
                       <option key={l} value={l}>{l}</option>
@@ -2111,7 +2280,7 @@ export const AdminDashboard: React.FC = () => {
                   value={tvFormData.streamUrl}
                   onChange={e => setTvFormData({ ...tvFormData, streamUrl: e.target.value })}
                   placeholder="https://.../live.m3u8"
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-[11px] focus:outline-none focus:border-amber-500"
+                  className="w-full min-h-[44px] px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-base sm:text-[11px] focus:outline-none focus:border-amber-500"
                 />
               </div>
 
@@ -2122,7 +2291,7 @@ export const AdminDashboard: React.FC = () => {
                   value={tvFormData.backupUrl}
                   onChange={e => setTvFormData({ ...tvFormData, backupUrl: e.target.value })}
                   placeholder="https://backup.../live.m3u8"
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-[11px] focus:outline-none focus:border-amber-500"
+                  className="w-full min-h-[44px] px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-base sm:text-[11px] focus:outline-none focus:border-amber-500"
                 />
               </div>
 
@@ -2132,43 +2301,43 @@ export const AdminDashboard: React.FC = () => {
                   type="url"
                   value={tvFormData.logoUrl}
                   onChange={e => setTvFormData({ ...tvFormData, logoUrl: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-amber-500"
+                  className="w-full min-h-[44px] px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-base sm:text-xs text-white focus:outline-none focus:border-amber-500"
                 />
               </div>
 
-              <div className="flex items-center gap-6 pt-2">
-                <label className="flex items-center gap-2 cursor-pointer">
+              <div className="flex flex-wrap items-center gap-4 pt-2">
+                <label className="flex items-center gap-2 cursor-pointer min-h-[36px]">
                   <input
                     type="checkbox"
                     checked={tvFormData.isFeatured}
                     onChange={e => setTvFormData({ ...tvFormData, isFeatured: e.target.checked })}
-                    className="accent-amber-500 w-4 h-4 rounded"
+                    className="accent-amber-500 w-5 h-5 rounded"
                   />
                   <span className="text-slate-300 font-medium">Feature on Homepage</span>
                 </label>
 
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex items-center gap-2 cursor-pointer min-h-[36px]">
                   <input
                     type="checkbox"
                     checked={tvFormData.verifiedFta}
                     onChange={e => setTvFormData({ ...tvFormData, verifiedFta: e.target.checked })}
-                    className="accent-emerald-500 w-4 h-4 rounded"
+                    className="accent-emerald-500 w-5 h-5 rounded"
                   />
                   <span className="text-slate-300 font-medium">Verified Free-to-Air (FTA)</span>
                 </label>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+              <div className="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-slate-800">
                 <button
                   type="button"
                   onClick={() => setIsAddTVModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold cursor-pointer"
+                  className="min-h-[44px] px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-md shadow-amber-500/20 cursor-pointer"
+                  className="min-h-[44px] px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-md shadow-amber-500/20 cursor-pointer"
                 >
                   Publish TV Channel
                 </button>
@@ -2182,20 +2351,20 @@ export const AdminDashboard: React.FC = () => {
       {/* MODAL 2: ADD RADIO STATION MODAL */}
       {/* ==================================================== */}
       {isAddRadioModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
-              <h3 className="font-display text-lg font-bold text-white flex items-center gap-2">
+              <h3 className="font-display text-base sm:text-lg font-bold text-white flex items-center gap-2">
                 <Radio className="w-5 h-5 text-sky-400" />
                 <span>Add Worldwide Radio Station</span>
               </h3>
-              <button onClick={() => setIsAddRadioModalOpen(false)} className="text-slate-400 hover:text-white cursor-pointer">
+              <button onClick={() => setIsAddRadioModalOpen(false)} aria-label="Close modal" className="w-10 h-10 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleAddRadioSubmit} className="space-y-3.5 text-xs">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-300 font-semibold mb-1">Station Name *</label>
                   <input
@@ -2204,7 +2373,7 @@ export const AdminDashboard: React.FC = () => {
                     value={radioFormData.name}
                     onChange={e => setRadioFormData({ ...radioFormData, name: e.target.value })}
                     placeholder="e.g. Radio Mirchi 98.3"
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-sky-500"
+                    className="w-full min-h-[44px] px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-base sm:text-xs text-white focus:outline-none focus:border-sky-500"
                   />
                 </div>
                 <div>
@@ -2214,18 +2383,18 @@ export const AdminDashboard: React.FC = () => {
                     value={radioFormData.broadcaster}
                     onChange={e => setRadioFormData({ ...radioFormData, broadcaster: e.target.value })}
                     placeholder="e.g. Radio Browser / Mirchi"
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-sky-500"
+                    className="w-full min-h-[44px] px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-base sm:text-xs text-white focus:outline-none focus:border-sky-500"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-300 font-semibold mb-1">Radio Genre</label>
                   <select
                     value={radioFormData.category}
                     onChange={e => setRadioFormData({ ...radioFormData, category: e.target.value as ChannelCategory })}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-sky-500"
+                    className="w-full min-h-[44px] px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-base sm:text-xs text-white focus:outline-none focus:border-sky-500"
                   >
                     {RADIO_CATEGORIES_LIST.filter(c => c !== 'All').map(cat => (
                       <option key={cat} value={cat}>{cat}</option>
@@ -2237,7 +2406,7 @@ export const AdminDashboard: React.FC = () => {
                   <select
                     value={radioFormData.bitrate}
                     onChange={e => setRadioFormData({ ...radioFormData, bitrate: parseInt(e.target.value, 10) || 128 })}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-sky-500"
+                    className="w-full min-h-[44px] px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-base sm:text-xs text-white focus:outline-none focus:border-sky-500"
                   >
                     <option value={64}>64 kbps (Low Data)</option>
                     <option value={128}>128 kbps (Standard HQ)</option>
@@ -2255,17 +2424,17 @@ export const AdminDashboard: React.FC = () => {
                   value={radioFormData.streamUrl}
                   onChange={e => setRadioFormData({ ...radioFormData, streamUrl: e.target.value })}
                   placeholder="https://.../stream.mp3"
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-[11px] focus:outline-none focus:border-sky-500"
+                  className="w-full min-h-[44px] px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-base sm:text-[11px] focus:outline-none focus:border-sky-500"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-300 font-semibold mb-1">Country</label>
                   <select
                     value={radioFormData.country}
                     onChange={e => setRadioFormData({ ...radioFormData, country: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-sky-500"
+                    className="w-full min-h-[44px] px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-base sm:text-xs text-white focus:outline-none focus:border-sky-500"
                   >
                     {ALL_COUNTRIES.filter(c => c !== 'All').map(c => (
                       <option key={c} value={c}>{c}</option>
@@ -2277,7 +2446,7 @@ export const AdminDashboard: React.FC = () => {
                   <select
                     value={radioFormData.language}
                     onChange={e => setRadioFormData({ ...radioFormData, language: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-sky-500"
+                    className="w-full min-h-[44px] px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-base sm:text-xs text-white focus:outline-none focus:border-sky-500"
                   >
                     {ALL_LANGUAGES.filter(l => l !== 'All').map(l => (
                       <option key={l} value={l}>{l}</option>
@@ -2292,33 +2461,33 @@ export const AdminDashboard: React.FC = () => {
                   type="url"
                   value={radioFormData.logoUrl}
                   onChange={e => setRadioFormData({ ...radioFormData, logoUrl: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-sky-500"
+                  className="w-full min-h-[44px] px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-base sm:text-xs text-white focus:outline-none focus:border-sky-500"
                 />
               </div>
 
               <div className="flex items-center gap-6 pt-2">
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex items-center gap-2 cursor-pointer min-h-[36px]">
                   <input
                     type="checkbox"
                     checked={radioFormData.isFeatured}
                     onChange={e => setRadioFormData({ ...radioFormData, isFeatured: e.target.checked })}
-                    className="accent-sky-500 w-4 h-4 rounded"
+                    className="accent-sky-500 w-5 h-5 rounded"
                   />
                   <span className="text-slate-300 font-medium">Feature in Radio Spotlight</span>
                 </label>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+              <div className="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-slate-800">
                 <button
                   type="button"
                   onClick={() => setIsAddRadioModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold cursor-pointer"
+                  className="min-h-[44px] px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold shadow-md shadow-sky-500/20 cursor-pointer"
+                  className="min-h-[44px] px-5 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold shadow-md shadow-sky-500/20 cursor-pointer"
                 >
                   Add Radio Station
                 </button>
@@ -2332,14 +2501,14 @@ export const AdminDashboard: React.FC = () => {
       {/* MODAL 3: EDIT STREAM DETAILS MODAL */}
       {/* ==================================================== */}
       {editingChannel && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
-              <h3 className="font-display text-lg font-bold text-white flex items-center gap-2">
+              <h3 className="font-display text-base sm:text-lg font-bold text-white flex items-center gap-2">
                 <Edit3 className="w-5 h-5 text-amber-400" />
                 <span>Edit Stream Details</span>
               </h3>
-              <button onClick={() => setEditingChannel(null)} className="text-slate-400 hover:text-white cursor-pointer">
+              <button onClick={() => setEditingChannel(null)} aria-label="Close modal" className="w-10 h-10 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -2352,17 +2521,17 @@ export const AdminDashboard: React.FC = () => {
                   required
                   value={editingChannel.name}
                   onChange={e => setEditingChannel({ ...editingChannel, name: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-amber-500"
+                  className="w-full min-h-[44px] px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-base sm:text-xs text-white focus:outline-none focus:border-amber-500"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-300 font-semibold mb-1">Category</label>
                   <select
                     value={editingChannel.category}
                     onChange={e => setEditingChannel({ ...editingChannel, category: e.target.value as ChannelCategory })}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-amber-500"
+                    className="w-full min-h-[44px] px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-base sm:text-xs text-white focus:outline-none focus:border-amber-500"
                   >
                     {ALL_CATEGORIES.filter(c => c !== 'All').map(c => (
                       <option key={c} value={c}>{c}</option>
@@ -2374,7 +2543,7 @@ export const AdminDashboard: React.FC = () => {
                   <select
                     value={editingChannel.language}
                     onChange={e => setEditingChannel({ ...editingChannel, language: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-amber-500"
+                    className="w-full min-h-[44px] px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-base sm:text-xs text-white focus:outline-none focus:border-amber-500"
                   >
                     {ALL_LANGUAGES.filter(l => l !== 'All').map(l => (
                       <option key={l} value={l}>{l}</option>
@@ -2390,7 +2559,7 @@ export const AdminDashboard: React.FC = () => {
                   required
                   value={editingChannel.streamUrl}
                   onChange={e => setEditingChannel({ ...editingChannel, streamUrl: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-[11px] focus:outline-none focus:border-amber-500"
+                  className="w-full min-h-[44px] px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-base sm:text-[11px] focus:outline-none focus:border-amber-500"
                 />
               </div>
 
@@ -2400,7 +2569,7 @@ export const AdminDashboard: React.FC = () => {
                   type="url"
                   value={editingChannel.backupUrl || ''}
                   onChange={e => setEditingChannel({ ...editingChannel, backupUrl: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-[11px] focus:outline-none focus:border-amber-500"
+                  className="w-full min-h-[44px] px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-base sm:text-[11px] focus:outline-none focus:border-amber-500"
                 />
               </div>
 
@@ -2410,33 +2579,33 @@ export const AdminDashboard: React.FC = () => {
                   type="url"
                   value={editingChannel.logoUrl}
                   onChange={e => setEditingChannel({ ...editingChannel, logoUrl: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-amber-500"
+                  className="w-full min-h-[44px] px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-base sm:text-xs text-white focus:outline-none focus:border-amber-500"
                 />
               </div>
 
               <div className="flex items-center gap-6 pt-2">
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex items-center gap-2 cursor-pointer min-h-[36px]">
                   <input
                     type="checkbox"
                     checked={editingChannel.isFeatured || false}
                     onChange={e => setEditingChannel({ ...editingChannel, isFeatured: e.target.checked })}
-                    className="accent-amber-500 w-4 h-4 rounded"
+                    className="accent-amber-500 w-5 h-5 rounded"
                   />
                   <span className="text-slate-300 font-medium">Featured Stream</span>
                 </label>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+              <div className="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-slate-800">
                 <button
                   type="button"
                   onClick={() => setEditingChannel(null)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold cursor-pointer"
+                  className="min-h-[44px] px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-md shadow-amber-500/20 cursor-pointer"
+                  className="min-h-[44px] px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-md shadow-amber-500/20 cursor-pointer"
                 >
                   Save Changes
                 </button>
@@ -2450,14 +2619,14 @@ export const AdminDashboard: React.FC = () => {
       {/* MODAL 4: INLINE LOGO UPDATER MODAL */}
       {/* ==================================================== */}
       {editingLogoChannel && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
-              <h3 className="font-display text-base font-bold text-white flex items-center gap-2">
-                <ImageIcon className="w-4 h-4 text-amber-400" />
-                <span>Update Channel Logo: {editingLogoChannel.name}</span>
+              <h3 className="font-display text-base font-bold text-white flex items-center gap-2 min-w-0">
+                <ImageIcon className="w-4 h-4 text-amber-400 shrink-0" />
+                <span className="truncate">Update Channel Logo: {editingLogoChannel.name}</span>
               </h3>
-              <button onClick={() => setEditingLogoChannel(null)} className="text-slate-400 hover:text-white cursor-pointer">
+              <button onClick={() => setEditingLogoChannel(null)} aria-label="Close modal" className="w-10 h-10 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer shrink-0">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -2482,7 +2651,7 @@ export const AdminDashboard: React.FC = () => {
                   value={tempLogoUrl}
                   onChange={e => setTempLogoUrl(e.target.value)}
                   placeholder="https://.../logo.png"
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-[11px] focus:outline-none focus:border-amber-500"
+                  className="w-full min-h-[44px] px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-base sm:text-[11px] focus:outline-none focus:border-amber-500"
                 />
               </div>
 
@@ -2500,7 +2669,7 @@ export const AdminDashboard: React.FC = () => {
                       key={preset.name}
                       type="button"
                       onClick={() => setTempLogoUrl(preset.url)}
-                      className="px-2 py-1 rounded-lg bg-slate-950 border border-slate-800 text-[10px] text-slate-300 hover:text-white cursor-pointer"
+                      className="min-h-[36px] px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-[11px] text-slate-300 hover:text-white cursor-pointer"
                     >
                       {preset.name}
                     </button>
@@ -2508,17 +2677,17 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+              <div className="flex flex-wrap items-center justify-end gap-3 pt-3 border-t border-slate-800">
                 <button
                   type="button"
                   onClick={() => setEditingLogoChannel(null)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-semibold cursor-pointer"
+                  className="min-h-[44px] px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold cursor-pointer"
+                  className="min-h-[44px] px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold cursor-pointer"
                 >
                   Apply Logo
                 </button>
@@ -2532,8 +2701,8 @@ export const AdminDashboard: React.FC = () => {
       {/* MODAL 5: DELETE CONFIRMATION */}
       {/* ==================================================== */}
       {channelToDelete && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="max-w-sm w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 text-center">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="max-w-sm w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 text-center max-h-[90dvh] overflow-y-auto">
             <div className="w-12 h-12 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center mx-auto mb-3">
               <Trash2 className="w-6 h-6" />
             </div>
@@ -2541,16 +2710,16 @@ export const AdminDashboard: React.FC = () => {
             <p className="text-xs text-slate-400 mb-5">
               Are you sure you want to remove <span className="font-semibold text-white">"{channelToDelete.name}"</span> from the broadcast catalog?
             </p>
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-3">
               <button
                 onClick={() => setChannelToDelete(null)}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
+                className="min-h-[44px] px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteConfirmed}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer"
+                className="min-h-[44px] px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer"
               >
                 Delete
               </button>
@@ -2563,8 +2732,8 @@ export const AdminDashboard: React.FC = () => {
       {/* MODAL 6: RESET TO FACTORY DEFAULTS CONFIRMATION */}
       {/* ==================================================== */}
       {showResetConfirm && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 text-center">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 text-center max-h-[90dvh] overflow-y-auto">
             <div className="w-12 h-12 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center mx-auto mb-3">
               <AlertTriangle className="w-6 h-6" />
             </div>
@@ -2572,10 +2741,10 @@ export const AdminDashboard: React.FC = () => {
             <p className="text-xs text-slate-400 leading-relaxed mb-6">
               This will restore the broadcast catalog back to the original verified Free-to-Air TV and Radio stations list.
             </p>
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-3">
               <button
                 onClick={() => setShowResetConfirm(false)}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
+                className="min-h-[44px] px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
               >
                 Cancel
               </button>
@@ -2585,7 +2754,7 @@ export const AdminDashboard: React.FC = () => {
                   setShowResetConfirm(false);
                   showToast('Catalog restored to verified defaults.');
                 }}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer"
+                className="min-h-[44px] px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer"
               >
                 Confirm Reset
               </button>
@@ -2598,8 +2767,8 @@ export const AdminDashboard: React.FC = () => {
       {/* MODAL 7: PURGE BROKEN STREAMS CONFIRMATION */}
       {/* ==================================================== */}
       {showPurgeConfirm && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 text-center">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 text-center max-h-[90dvh] overflow-y-auto">
             <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto mb-3">
               <Trash2 className="w-6 h-6" />
             </div>
@@ -2607,16 +2776,16 @@ export const AdminDashboard: React.FC = () => {
             <p className="text-xs text-slate-400 leading-relaxed mb-6">
               This will remove any feeds that failed the recent health check diagnostics probe.
             </p>
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-3">
               <button
                 onClick={() => setShowPurgeConfirm(false)}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
+                className="min-h-[44px] px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handlePurgeBroken}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer"
+                className="min-h-[44px] px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer"
               >
                 Purge Broken Streams
               </button>

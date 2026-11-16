@@ -21,8 +21,9 @@ import {
 import { useApp } from '../../context/AppContext';
 import { RADIO_CATEGORIES_LIST, ALL_COUNTRIES } from '../../data/initialChannels';
 import { Channel, SleepTimerOption } from '../../types';
-import { searchRadioBrowser, fetchRadioByCountry, fetchRadioByTag } from '../../services/radioBrowserService';
+import { searchRadioBrowser } from '../../services/radioBrowserService';
 import { RadioPlatformsHub } from './RadioPlatformsHub';
+import { getDeviceRuntimeProfile } from '../../services/devicePerformance';
 
 export const RadioSection: React.FC = () => {
   const { 
@@ -45,16 +46,22 @@ export const RadioSection: React.FC = () => {
     user
   } = useApp();
 
+  const runtimeProfile = useMemo(() => getDeviceRuntimeProfile(), []);
+  const pageStep = runtimeProfile.recommendedPageSize;
+
   const [radioTab, setRadioTab] = useState<'stations' | 'platforms'>('stations');
+  const [collectionMode, setCollectionMode] = useState<'all' | 'favorites' | 'recent'>('all');
   const [radioSearch, setRadioSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedCountry, setSelectedCountry] = useState<string>('All');
   const [apiSearchResults, setApiSearchResults] = useState<Channel[]>([]);
   const [isSearchingApi, setIsSearchingApi] = useState<boolean>(false);
+  const [visibleCount, setVisibleCount] = useState<number>(pageStep);
 
   // Sync category changes with Radio Browser API
   const handleCategoryClick = (cat: string) => {
     setSelectedCategory(cat);
+    setVisibleCount(pageStep);
     if (cat !== 'All') {
       syncRadioBrowser(cat);
     } else {
@@ -105,7 +112,14 @@ export const RadioSection: React.FC = () => {
       }
     }
 
-    return uniqueStations.filter(station => {
+    const filtered = uniqueStations.filter(station => {
+      if (collectionMode === 'favorites' && !user.favorites.includes(station.id)) {
+        return false;
+      }
+      if (collectionMode === 'recent' && !user.recentIds.includes(station.id)) {
+        return false;
+      }
+
       if (selectedCategory !== 'All') {
         const cat = (station.category || '').toLowerCase();
         const sel = selectedCategory.toLowerCase();
@@ -128,22 +142,32 @@ export const RadioSection: React.FC = () => {
 
       return true;
     });
-  }, [apiSearchResults, liveRadioStations, channels, selectedCategory, selectedCountry, radioSearch]);
+
+    if (collectionMode === 'recent') {
+      const rank = new Map(user.recentIds.map((id, i) => [id, i]));
+      filtered.sort((a, b) => (rank.get(a.id) ?? 999) - (rank.get(b.id) ?? 999));
+    }
+
+    return filtered;
+  }, [apiSearchResults, liveRadioStations, channels, collectionMode, user.favorites, user.recentIds, selectedCategory, selectedCountry, radioSearch]);
 
   // Recently played stations
   const recentStations = useMemo(() => {
+    const pool = [...liveRadioStations, ...channels.filter(c => c.type === 'radio')];
+    const byId = new Map(pool.map(c => [c.id, c]));
     return user.recentIds
-      .map(id => channels.find(c => c.id === id && c.type === 'radio'))
+      .map(id => byId.get(id))
       .filter(Boolean) as Channel[];
-  }, [user.recentIds, channels]);
+  }, [user.recentIds, channels, liveRadioStations]);
 
   const timerOptions: SleepTimerOption[] = [0, 15, 30, 45, 60, 90];
+  const visibleStations = displayedStations.slice(0, visibleCount);
 
   return (
-    <div className="space-y-8 pb-28">
+    <div className="space-y-6 sm:space-y-8 pb-8">
       {/* Radio Studio Showcase Banner */}
-      <section className="relative rounded-3xl overflow-hidden bg-slate-900 border border-slate-800 shadow-xl">
-        <div className="relative min-h-[260px] sm:min-h-[300px] flex items-center">
+      <section className="relative rounded-2xl sm:rounded-3xl overflow-hidden bg-slate-900 border border-slate-800 shadow-xl">
+        <div className="relative min-h-[240px] sm:min-h-[280px] flex items-center">
           <img 
             src="/src/assets/images/radio_studio_live_1794217863423.jpg" 
             alt="Radio Broadcast Studio" 
@@ -154,7 +178,7 @@ export const RadioSection: React.FC = () => {
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/70 to-transparent" />
 
-          <div className="relative z-10 max-w-2xl px-6 sm:px-10 py-8">
+          <div className="relative z-10 w-full max-w-2xl px-4 sm:px-8 lg:px-10 py-6 sm:py-8">
             <div className="flex flex-wrap items-center gap-2 mb-2">
               <span className="px-2.5 py-0.5 rounded bg-amber-500 text-slate-950 text-[10px] font-black tracking-widest uppercase">
                 WORLDWIDE RADIO
@@ -164,7 +188,7 @@ export const RadioSection: React.FC = () => {
               </span>
             </div>
 
-            <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight leading-tight mb-2">
+            <h1 className="font-display text-fluid-title font-extrabold text-white tracking-tight leading-tight mb-2">
               Worldwide Free Internet Radio
             </h1>
 
@@ -173,8 +197,8 @@ export const RadioSection: React.FC = () => {
             </p>
 
             {/* Quick Controls: Sleep timer & Live Status */}
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-850/90 border border-slate-700 text-xs text-slate-200">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <div className="min-h-[44px] flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-850/90 border border-slate-700 text-xs text-slate-200">
                 <Moon className="w-3.5 h-3.5 text-amber-400" />
                 <span>Sleep Timer:</span>
                 <select
@@ -192,7 +216,7 @@ export const RadioSection: React.FC = () => {
 
               <button
                 onClick={() => syncRadioBrowser(selectedCategory)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-850/90 hover:bg-slate-800 border border-slate-700 text-xs text-slate-200 transition-colors cursor-pointer"
+                className="min-h-[44px] flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-850/90 hover:bg-slate-800 border border-slate-700 text-xs text-slate-200 transition-colors cursor-pointer"
               >
                 <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${isLoadingLiveRadio ? 'animate-spin' : ''}`} />
                 <span>Sync Live Streams</span>
@@ -203,29 +227,29 @@ export const RadioSection: React.FC = () => {
       </section>
 
       {/* Radio Hub Navigation Sub-Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-800 pb-2 overflow-x-auto no-scrollbar">
+      <div className="flex items-center gap-2 border-b border-slate-800 pb-2 overflow-x-auto scrollbar-none">
         <button
           onClick={() => setRadioTab('stations')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+          className={`min-h-[44px] flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
             radioTab === 'stations'
               ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
               : 'text-slate-400 hover:text-white hover:bg-slate-900'
           }`}
         >
           <Radio className="w-4 h-4" />
-          <span>Live Radio Stations ({displayedStations.length})</span>
+          <span>Live Stations ({displayedStations.length})</span>
         </button>
 
         <button
           onClick={() => setRadioTab('platforms')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+          className={`min-h-[44px] flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
             radioTab === 'platforms'
               ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
               : 'text-slate-400 hover:text-white hover:bg-slate-900'
           }`}
         >
           <Globe2 className="w-4 h-4" />
-          <span>7 Global Radio Platforms (Radio Garden, Roam, Air Drift, Airtune...)</span>
+          <span>7 Global Radio Platforms</span>
         </button>
       </div>
 
@@ -281,19 +305,49 @@ export const RadioSection: React.FC = () => {
             <input
               type="text"
               value={radioSearch}
-              onChange={e => setRadioSearch(e.target.value)}
+              onChange={e => {
+                setRadioSearch(e.target.value);
+                setVisibleCount(pageStep);
+              }}
               placeholder="Search station name, country, genre..."
-              className="w-full pl-9 pr-8 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-amber-500 transition-colors"
+              className="w-full min-h-[44px] pl-9 pr-10 py-2 bg-slate-900 border border-slate-800 rounded-xl text-base sm:text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-amber-500 transition-colors"
             />
             {radioSearch && (
               <button
                 onClick={() => setRadioSearch('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
+                aria-label="Clear radio search"
+                className="absolute right-1 top-1/2 -translate-y-1/2 min-w-[36px] min-h-[36px] flex items-center justify-center text-slate-400 hover:text-white cursor-pointer"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-4 h-4" />
               </button>
             )}
           </div>
+        </div>
+
+        {/* Collection Mode Filter: All Stations / Favourites / Recently Played */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-xs">
+          {(
+            [
+              { id: 'all', label: 'All Stations' },
+              { id: 'favorites', label: 'Favourite Stations' },
+              { id: 'recent', label: 'Recently Played' },
+            ] as const
+          ).map(mode => (
+            <button
+              key={mode.id}
+              onClick={() => {
+                setCollectionMode(mode.id);
+                setVisibleCount(pageStep);
+              }}
+              className={`min-h-[40px] px-3.5 py-1.5 rounded-xl font-bold whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
+                collectionMode === mode.id
+                  ? 'bg-emerald-500 text-slate-950'
+                  : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800'
+              }`}
+            >
+              {mode.label}
+            </button>
+          ))}
         </div>
 
         {/* 16 Standardized Radio Category Pills */}
@@ -304,7 +358,7 @@ export const RadioSection: React.FC = () => {
               <button
                 key={cat}
                 onClick={() => handleCategoryClick(cat)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
+                className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
                   isSelected
                     ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
                     : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800'
@@ -322,8 +376,11 @@ export const RadioSection: React.FC = () => {
           {ALL_COUNTRIES.map(c => (
             <button
               key={c}
-              onClick={() => setSelectedCountry(c)}
-              className={`px-2.5 py-1 rounded-lg text-[11px] whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
+              onClick={() => {
+                setSelectedCountry(c);
+                setVisibleCount(36);
+              }}
+              className={`min-h-[36px] px-2.5 py-1 rounded-lg text-[11px] whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
                 selectedCountry === c
                   ? 'bg-slate-200 text-slate-950 font-bold'
                   : 'bg-slate-900 hover:bg-slate-800 text-slate-400 border border-slate-800/80'
@@ -343,9 +400,9 @@ export const RadioSection: React.FC = () => {
         </div>
       )}
 
-      {/* Radio Station Cards Grid (Station logo, Station name, Country, Language, Genre, Play/Pause, Volume, Favorite) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {displayedStations.map((station, idx) => {
+      {/* Radio Station Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-4">
+        {visibleStations.map((station, idx) => {
           const isCurrentStation = activeRadio?.id === station.id;
           const isPlayingThis = isCurrentStation && isRadioPlaying;
           const isFav = isFavorite(station.id);
@@ -411,7 +468,7 @@ export const RadioSection: React.FC = () => {
                       playRadioStation(station);
                     }
                   }}
-                  className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  className={`flex-1 min-h-[44px] py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                     isPlayingThis
                       ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
                       : 'bg-slate-800 hover:bg-amber-500 text-slate-200 hover:text-slate-950'
@@ -433,13 +490,14 @@ export const RadioSection: React.FC = () => {
                 <button
                   onClick={() => toggleFavorite(station.id)}
                   title={isFav ? 'Remove from favorites' : 'Add to favorites'}
-                  className={`p-2 rounded-xl border transition-colors cursor-pointer ${
+                  aria-label={isFav ? 'Remove from favorites' : 'Add to favorites'}
+                  className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl border transition-colors cursor-pointer ${
                     isFav
                       ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
                       : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
                   }`}
                 >
-                  <Heart className={`w-3.5 h-3.5 ${isFav ? 'fill-rose-500' : ''}`} />
+                  <Heart className={`w-4 h-4 ${isFav ? 'fill-rose-500' : ''}`} />
                 </button>
               </div>
             </div>
@@ -447,8 +505,19 @@ export const RadioSection: React.FC = () => {
         })}
       </div>
 
+      {visibleStations.length < displayedStations.length && (
+        <div className="flex justify-center pt-2">
+          <button
+            onClick={() => setVisibleCount(prev => prev + pageStep)}
+            className="min-h-[44px] px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-amber-400 text-xs font-bold transition-colors cursor-pointer"
+          >
+            Load More Stations ({displayedStations.length - visibleStations.length} remaining)
+          </button>
+        </div>
+      )}
+
       {displayedStations.length === 0 && !isLoadingLiveRadio && !isSearchingApi && (
-        <div className="p-12 text-center rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
+        <div className="p-8 sm:p-12 text-center rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
           <Radio className="w-8 h-8 text-slate-500 mx-auto" />
           <h3 className="text-sm font-bold text-white">No Radio Stations Found</h3>
           <p className="text-xs text-slate-400 max-w-sm mx-auto">
@@ -456,12 +525,14 @@ export const RadioSection: React.FC = () => {
           </p>
           <button
             onClick={() => {
+              setCollectionMode('all');
               setSelectedCategory('All');
               setSelectedCountry('All');
               setRadioSearch('');
+              setVisibleCount(pageStep);
               syncRadioBrowser();
             }}
-            className="px-4 py-2 rounded-xl bg-amber-500 text-slate-950 text-xs font-bold hover:bg-amber-400 transition-colors cursor-pointer"
+            className="min-h-[44px] px-5 py-2 rounded-xl bg-amber-500 text-slate-950 text-xs font-bold hover:bg-amber-400 transition-colors cursor-pointer"
           >
             Reset Filters
           </button>

@@ -57,7 +57,7 @@ export const OttSection: React.FC = () => {
             <Flame className="w-3.5 h-3.5 fill-red-400" />
             <span>OTT Platforms &amp; YouTube Live Hub</span>
           </div>
-          <h1 className="font-display text-2xl md:text-4xl font-extrabold text-white tracking-tight mb-2">
+          <h1 className="font-display text-fluid-hero font-extrabold text-white tracking-tight mb-2">
             Watch Free Shows, Sports &amp; Live YouTube Broadcasts
           </h1>
           <p className="text-sm md:text-base text-slate-300 leading-relaxed mb-6">
@@ -128,7 +128,7 @@ export const OttSection: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {jioAndColitoChannels.map(channel => (
               <div
                 key={channel.id}
@@ -207,7 +207,7 @@ export const OttSection: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {youtubeLiveChannels.map((ytChannel: Channel) => (
               <div
                 key={ytChannel.id}
@@ -270,12 +270,12 @@ export const OttSection: React.FC = () => {
 
       {/* Filter and Search Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pt-4 border-t border-slate-800/80">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
           {categories.map(cat => (
             <button
               key={cat}
               onClick={() => setSelectedFilter(cat)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+              className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs font-medium whitespace-nowrap shrink-0 transition-all cursor-pointer ${
                 selectedFilter === cat
                   ? 'bg-amber-500 text-black font-semibold shadow-md shadow-amber-500/20'
                   : 'bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800'
@@ -287,24 +287,24 @@ export const OttSection: React.FC = () => {
         </div>
 
         {/* Search */}
-        <div className="relative min-w-[240px]">
+        <div className="relative w-full sm:w-64 shrink-0">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="Search platform, show or language..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-amber-500/60 transition-colors"
+            className="w-full min-h-[44px] pl-9 pr-3 py-2 text-base sm:text-xs bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-amber-500/60 transition-colors"
           />
         </div>
       </div>
 
       {/* OTT Platforms Grid */}
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Layers className="w-5 h-5 text-amber-400" />
-            <h2 className="text-xl font-bold text-white tracking-tight">
+            <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
               Featured OTT Networks &amp; Broadcaster Portals
             </h2>
           </div>
@@ -313,7 +313,7 @@ export const OttSection: React.FC = () => {
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {filteredPlatforms.map((platform: OttPlatform) => (
             <div
               key={platform.id}
@@ -396,7 +396,7 @@ export const OttSection: React.FC = () => {
                   href={platform.websiteUrl}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-md shadow-amber-500/10 transition-all cursor-pointer"
+                  className="min-h-[44px] px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-md shadow-amber-500/10 transition-all cursor-pointer"
                 >
                   <span>Launch Platform</span>
                   <ExternalLink className="w-3.5 h-3.5" />

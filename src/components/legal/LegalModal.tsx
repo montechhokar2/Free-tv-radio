@@ -8,11 +8,12 @@ export const LegalModal: React.FC = () => {
   if (!isLegalModalOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-xl bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+      <div className="w-full max-w-xl bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-8 shadow-2xl relative max-h-[90dvh] overflow-y-auto">
         <button
           onClick={() => setIsLegalModalOpen(false)}
-          className="absolute top-5 right-5 p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+          aria-label="Close legal dialog"
+          className="absolute top-4 right-4 min-w-[44px] min-h-[44px] p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
@@ -75,7 +76,7 @@ export const LegalModal: React.FC = () => {
         <div className="mt-6 pt-4 border-t border-slate-800 flex justify-end">
           <button
             onClick={() => setIsLegalModalOpen(false)}
-            className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs cursor-pointer shadow-md shadow-amber-500/20"
+            className="w-full sm:w-auto min-h-[44px] px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs cursor-pointer shadow-md shadow-amber-500/20"
           >
             I Understand &amp; Agree
           </button>

@@ -112,6 +112,15 @@ export interface MonetizationConfig {
   nativeCards: boolean;
 }
 
+export interface AccountPermissions {
+  canStreamLiveTv: boolean;
+  canSaveFavorites: boolean;
+  canAccessAdult18: boolean;
+  canUseBackgroundAudio: boolean;
+  canAccessAdminConsole: boolean;
+  canEditCatalog: boolean;
+}
+
 export interface UserProfile {
   id: string;
   name: string;
@@ -124,6 +133,7 @@ export interface UserProfile {
   preferredLanguage: string;
   parentalControl: ParentalControlConfig;
   monetization: MonetizationConfig;
+  permissions?: AccountPermissions;
 }
 
 export interface WebDirectoryChannel {

@@ -60,14 +60,14 @@ export const RadioPlatformsHub: React.FC = () => {
           </div>
 
           {/* Quick Search */}
-          <div className="relative w-full md:w-64">
+          <div className="relative w-full md:w-64 shrink-0">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={platformSearch}
               onChange={e => setPlatformSearch(e.target.value)}
               placeholder="Search platforms..."
-              className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-500"
+              className="w-full min-h-[44px] pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-base sm:text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-500"
             />
           </div>
         </div>
@@ -88,6 +88,7 @@ export const RadioPlatformsHub: React.FC = () => {
                     <img
                       src={platform.logoUrl}
                       alt={platform.name}
+                      loading="lazy"
                       className="w-full h-full object-cover rounded-xl"
                     />
                   </div>
@@ -129,7 +130,7 @@ export const RadioPlatformsHub: React.FC = () => {
                   href={platform.websiteUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-amber-500/20 cursor-pointer"
+                  className="flex-1 min-h-[44px] py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-amber-500/20 cursor-pointer"
                 >
                   <span>Launch Platform</span>
                   <ExternalLink className="w-3.5 h-3.5" />
@@ -137,7 +138,7 @@ export const RadioPlatformsHub: React.FC = () => {
 
                 <button
                   onClick={() => setSelectedPlatform(platform)}
-                  className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition-colors cursor-pointer"
+                  className="min-h-[44px] py-2 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition-colors cursor-pointer"
                 >
                   Info
                 </button>
@@ -149,21 +150,22 @@ export const RadioPlatformsHub: React.FC = () => {
 
       {/* Platform Info Modal */}
       {selectedPlatform && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl overflow-hidden bg-slate-950 border border-slate-800">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="w-full max-w-lg max-h-[90dvh] overflow-y-auto bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-12 h-12 rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 shrink-0">
                   <img src={selectedPlatform.logoUrl} alt={selectedPlatform.name} className="w-full h-full object-cover" />
                 </div>
-                <div>
-                  <h3 className="font-display text-lg font-bold text-white">{selectedPlatform.name}</h3>
-                  <p className="text-xs text-amber-400 font-medium">{selectedPlatform.coverage}</p>
+                <div className="min-w-0">
+                  <h3 className="font-display text-lg font-bold text-white truncate">{selectedPlatform.name}</h3>
+                  <p className="text-xs text-amber-400 font-medium truncate">{selectedPlatform.coverage}</p>
                 </div>
               </div>
               <button 
                 onClick={() => setSelectedPlatform(null)}
-                className="text-slate-400 hover:text-white cursor-pointer"
+                aria-label="Close platform details"
+                className="min-w-[44px] min-h-[44px] p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer flex items-center justify-center shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -175,9 +177,9 @@ export const RadioPlatformsHub: React.FC = () => {
 
             <div className="space-y-2">
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Platform Capabilities</span>
-              <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                 {selectedPlatform.features.map(feat => (
-                  <div key={feat} className="flex items-center gap-1.5 text-slate-300 p-2 rounded-xl bg-slate-950 border border-slate-800">
+                  <div key={feat} className="flex items-center gap-1.5 text-slate-300 p-2.5 rounded-xl bg-slate-950 border border-slate-800">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                     <span className="truncate">{feat}</span>
                   </div>
@@ -190,10 +192,10 @@ export const RadioPlatformsHub: React.FC = () => {
               <strong className="text-amber-400 font-mono text-sm">{selectedPlatform.stationCount}</strong>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
               <button
                 onClick={() => setSelectedPlatform(null)}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs cursor-pointer"
+                className="min-h-[44px] px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs cursor-pointer"
               >
                 Close
               </button>
@@ -201,7 +203,7 @@ export const RadioPlatformsHub: React.FC = () => {
                 href={selectedPlatform.websiteUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-md shadow-amber-500/20 cursor-pointer"
+                className="min-h-[44px] px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-md shadow-amber-500/20 cursor-pointer"
               >
                 <span>Open {selectedPlatform.name}</span>
                 <ExternalLink className="w-3.5 h-3.5" />

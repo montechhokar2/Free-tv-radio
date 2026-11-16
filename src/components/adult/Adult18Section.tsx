@@ -38,7 +38,9 @@ export const Adult18Section: React.FC = () => {
     activeTV,
     playTVChannel,
     closeTVPlayer,
-    setCurrentTab
+    setCurrentTab,
+    accountPermissions,
+    setIsAuthModalOpen
   } = useApp();
 
   const [ageConfirmed, setAgeConfirmed] = useState(false);
@@ -55,6 +57,11 @@ export const Adult18Section: React.FC = () => {
   const handleUnlockSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setGateError(null);
+
+    if (!accountPermissions.canAccessAdult18) {
+      setGateError('18+ Adult Vault access is currently disabled in your Account Permissions.');
+      return;
+    }
 
     if (!ageConfirmed) {
       setGateError('Please confirm that you are 18 years of age or older.');
@@ -186,12 +193,12 @@ export const Adult18Section: React.FC = () => {
           </div>
 
           <form onSubmit={handleUnlockSubmit} className="space-y-4">
-            <label className="flex items-start gap-3 p-3.5 rounded-2xl bg-slate-950 border border-slate-800 cursor-pointer hover:border-slate-700 transition-colors">
+            <label className="min-h-[48px] flex items-start gap-3 p-3.5 rounded-2xl bg-slate-950 border border-slate-800 cursor-pointer hover:border-slate-700 transition-colors">
               <input
                 type="checkbox"
                 checked={ageConfirmed}
                 onChange={e => setAgeConfirmed(e.target.checked)}
-                className="mt-0.5 w-4 h-4 accent-rose-500 rounded cursor-pointer"
+                className="mt-0.5 w-5 h-5 accent-rose-500 rounded cursor-pointer shrink-0"
               />
               <span className="text-xs text-slate-200 leading-snug">
                 I confirm that I am <strong>18 years of age or older</strong> and wish to access the separate 18+ Adult / XXX IPTV category.
@@ -211,7 +218,7 @@ export const Adult18Section: React.FC = () => {
                   value={pinInput}
                   onChange={e => setPinInput(e.target.value)}
                   placeholder="Enter Parental PIN (default: 0000)"
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-rose-500"
+                  className="w-full min-h-[44px] px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-base sm:text-xs text-white focus:outline-none focus:border-rose-500"
                 />
               </div>
             )}
@@ -223,10 +230,23 @@ export const Adult18Section: React.FC = () => {
               </div>
             )}
 
+            {!accountPermissions.canAccessAdult18 && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 flex flex-wrap items-center justify-between gap-3">
+                <span>18+ access is turned off in your Account Permissions.</span>
+                <button
+                  type="button"
+                  onClick={() => setIsAuthModalOpen(true)}
+                  className="min-h-[40px] px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold text-xs shrink-0 cursor-pointer hover:bg-amber-400"
+                >
+                  Account Permissions
+                </button>
+              </div>
+            )}
+
             <div className="flex flex-wrap items-center gap-3 pt-1">
               <button
                 type="submit"
-                className="flex-1 py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                className="flex-1 min-h-[44px] py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
               >
                 <Unlock className="w-4 h-4" />
                 <span>Enter 18+ Category</span>
@@ -234,7 +254,7 @@ export const Adult18Section: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setCurrentTab('home')}
-                className="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold cursor-pointer"
+                className="min-h-[44px] py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold cursor-pointer"
               >
                 Back to Home
               </button>
@@ -295,7 +315,7 @@ export const Adult18Section: React.FC = () => {
             <button
               onClick={() => void syncAdult18Catalog(true)}
               disabled={isLoadingAdult18}
-              className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              className="min-h-[44px] px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoadingAdult18 ? 'animate-spin' : ''}`} />
               <span>{isLoadingAdult18 ? 'Syncing API...' : 'Sync IPTV-org 18+ API'}</span>
@@ -303,7 +323,7 @@ export const Adult18Section: React.FC = () => {
 
             <button
               onClick={lockAdult18}
-              className="px-3.5 py-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-slate-200 flex items-center gap-1.5 cursor-pointer"
+              className="min-h-[44px] px-3.5 py-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-slate-200 flex items-center gap-1.5 cursor-pointer"
             >
               <Lock className="w-3.5 h-3.5 text-rose-400" />
               <span>Lock 18+ Section</span>
@@ -314,7 +334,7 @@ export const Adult18Section: React.FC = () => {
         {/* Custom 18+ M3U Loader & API Endpoints Summary */}
         <div className="pt-4 border-t border-slate-800/80 grid grid-cols-1 lg:grid-cols-2 gap-4 text-xs">
           <form onSubmit={handleLoadCustomM3u} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2.5">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="font-bold text-white flex items-center gap-1.5">
                 <Link2 className="w-3.5 h-3.5 text-rose-400" />
                 <span>Load Custom 18+ M3U / M3U8 Playlist URL</span>
@@ -322,23 +342,23 @@ export const Adult18Section: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setCustomM3uInput(IPTV_ORG_XXX_PLAYLIST_URL)}
-                className="text-[11px] text-rose-400 hover:underline cursor-pointer"
+                className="text-[11px] text-rose-400 hover:underline cursor-pointer py-1"
               >
                 Use iptv-org xxx.m3u
               </button>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="url"
                 value={customM3uInput}
                 onChange={e => setCustomM3uInput(e.target.value)}
                 placeholder="Paste any external #EXTM3U / .m3u8 URL (isolated to 18+ tab)"
-                className="flex-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-[11px] focus:outline-none focus:border-rose-500"
+                className="flex-1 min-h-[44px] px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-base sm:text-xs focus:outline-none focus:border-rose-500"
               />
               <button
                 type="submit"
                 disabled={isLoadingAdult18}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold cursor-pointer disabled:opacity-50"
+                className="min-h-[44px] px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold cursor-pointer disabled:opacity-50 shrink-0"
               >
                 Load M3U
               </button>
@@ -364,13 +384,13 @@ export const Adult18Section: React.FC = () => {
 
         {/* Sub-tabs, Search & Country Filter */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-800/80">
-          <div className="flex items-center bg-slate-950 border border-slate-800 rounded-xl p-1 w-fit">
+          <div className="flex items-center bg-slate-950 border border-slate-800 rounded-xl p-1 w-full sm:w-fit overflow-x-auto scrollbar-none">
             <button
               onClick={() => {
                 setViewTab('streams');
                 setPageLimit(48);
               }}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+              className={`flex-1 sm:flex-initial min-h-[40px] px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors cursor-pointer ${
                 viewTab === 'streams' ? 'bg-rose-600 text-white' : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -381,7 +401,7 @@ export const Adult18Section: React.FC = () => {
                 setViewTab('directory');
                 setPageLimit(48);
               }}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+              className={`flex-1 sm:flex-initial min-h-[40px] px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors cursor-pointer ${
                 viewTab === 'directory' ? 'bg-rose-600 text-white' : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -389,7 +409,7 @@ export const Adult18Section: React.FC = () => {
             </button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 flex-1 sm:justify-end">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-1 sm:justify-end">
             <div className="relative flex-1 sm:max-w-xs">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
@@ -400,14 +420,15 @@ export const Adult18Section: React.FC = () => {
                   setPageLimit(48);
                 }}
                 placeholder="Search 18+ channels, network, ID..."
-                className="w-full pl-9 pr-8 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-rose-500"
+                className="w-full min-h-[44px] pl-9 pr-10 py-2 bg-slate-950 border border-slate-800 rounded-xl text-base sm:text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-rose-500"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
+                  aria-label="Clear search"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-white cursor-pointer"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-4 h-4" />
                 </button>
               )}
             </div>
@@ -418,7 +439,7 @@ export const Adult18Section: React.FC = () => {
                 setCountryFilter(e.target.value);
                 setPageLimit(48);
               }}
-              className="px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-rose-500"
+              className="w-full sm:w-auto min-h-[44px] px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-base sm:text-xs text-white focus:outline-none focus:border-rose-500"
             >
               {availableCountries.map(c => (
                 <option key={c} value={c}>
@@ -446,68 +467,81 @@ export const Adult18Section: React.FC = () => {
       )}
 
       {isLoadingAdult18 && adult18Directory.length === 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="h-44 rounded-2xl bg-slate-900/70 border border-slate-800 animate-pulse" />
           ))}
         </div>
       ) : viewTab === 'streams' ? (
         filteredStreams.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {filteredStreams.slice(0, pageLimit).map((ch, idx) => {
-              const isCurrent = activeTV?.id === ch.id;
-              return (
-                <div
-                  key={`${ch.id}-${idx}`}
-                  className={`rounded-2xl bg-slate-900 border p-4 flex flex-col justify-between gap-3 transition-all ${
-                    isCurrent ? 'border-rose-500 shadow-lg shadow-rose-500/10' : 'border-slate-800 hover:border-slate-700'
-                  }`}
-                >
-                  <div className="space-y-2.5">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="w-12 h-12 rounded-xl bg-slate-950 border border-slate-800 p-1.5 flex items-center justify-center overflow-hidden shrink-0">
-                        <img
-                          src={ch.logoUrl || FALLBACK_ADULT_LOGO}
-                          alt={ch.name}
-                          className="w-full h-full object-contain"
-                          loading="lazy"
-                          referrerPolicy="no-referrer"
-                          onError={e => {
-                            (e.target as HTMLImageElement).src = FALLBACK_ADULT_LOGO;
-                          }}
-                        />
-                      </div>
-                      <span className="px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30 text-[9px] font-black uppercase">
-                        18+ · {ch.streamFormat.toUpperCase()}
-                      </span>
-                    </div>
-
-                    <div>
-                      <h3 className="text-sm font-bold text-white line-clamp-1">{ch.name}</h3>
-                      <p className="text-[11px] text-slate-400 mt-0.5 truncate">
-                        {ch.country} · {ch.broadcaster || '18+ Adult'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      playTVChannel(ch);
-                      window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }}
-                    className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
-                      isCurrent
-                        ? 'bg-rose-600 text-white'
-                        : 'bg-slate-800 hover:bg-rose-600 text-slate-200 hover:text-white'
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filteredStreams.slice(0, pageLimit).map((ch, idx) => {
+                const isCurrent = activeTV?.id === ch.id;
+                return (
+                  <div
+                    key={`${ch.id}-${idx}`}
+                    className={`rounded-2xl bg-slate-900 border p-4 flex flex-col justify-between gap-3 transition-all ${
+                      isCurrent ? 'border-rose-500 shadow-lg shadow-rose-500/10' : 'border-slate-800 hover:border-slate-700'
                     }`}
                   >
-                    <Play className="w-3.5 h-3.5 fill-current" />
-                    <span>{isCurrent ? 'Streaming' : 'Watch Live'}</span>
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+                    <div className="space-y-2.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="w-12 h-12 rounded-xl bg-slate-950 border border-slate-800 p-1.5 flex items-center justify-center overflow-hidden shrink-0">
+                          <img
+                            src={ch.logoUrl || FALLBACK_ADULT_LOGO}
+                            alt={ch.name}
+                            className="w-full h-full object-contain"
+                            loading="lazy"
+                            referrerPolicy="no-referrer"
+                            onError={e => {
+                              (e.target as HTMLImageElement).src = FALLBACK_ADULT_LOGO;
+                            }}
+                          />
+                        </div>
+                        <span className="px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30 text-[9px] font-black uppercase">
+                          18+ · {ch.streamFormat.toUpperCase()}
+                        </span>
+                      </div>
+
+                      <div>
+                        <h3 className="text-sm font-bold text-white line-clamp-1">{ch.name}</h3>
+                        <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+                          {ch.country} · {ch.broadcaster || '18+ Adult'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        playTVChannel(ch);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className={`w-full min-h-[44px] py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+                        isCurrent
+                          ? 'bg-rose-600 text-white'
+                          : 'bg-slate-800 hover:bg-rose-600 text-slate-200 hover:text-white'
+                      }`}
+                    >
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                      <span>{isCurrent ? 'Streaming' : 'Watch Live'}</span>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {filteredStreams.length > pageLimit && (
+              <div className="flex justify-center pt-2">
+                <button
+                  onClick={() => setPageLimit(prev => prev + 48)}
+                  className="min-h-[44px] px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-rose-400 cursor-pointer"
+                >
+                  Load More Streams ({filteredStreams.length - pageLimit} remaining)
+                </button>
+              </div>
+            )}
+          </>
         ) : (
           <div className="p-10 text-center rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
             <Tv className="w-8 h-8 text-slate-500 mx-auto" />
@@ -519,7 +553,7 @@ export const Adult18Section: React.FC = () => {
         )
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredDirectory.slice(0, pageLimit).map(entry => (
               <div
                 key={entry.id}
@@ -565,13 +599,13 @@ export const Adult18Section: React.FC = () => {
                   {entry.streamUrl ? (
                     <button
                       onClick={() => playDirectoryEntry(entry)}
-                      className="flex-1 py-2 px-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="flex-1 min-h-[44px] py-2 px-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <Play className="w-3.5 h-3.5 fill-current" />
                       <span>Watch Stream</span>
                     </button>
                   ) : (
-                    <span className="flex-1 py-2 px-2.5 rounded-xl bg-slate-950 border border-slate-800 text-[10px] text-slate-500 text-center">
+                    <span className="flex-1 min-h-[44px] flex items-center justify-center py-2 px-2.5 rounded-xl bg-slate-950 border border-slate-800 text-[10px] text-slate-500 text-center">
                       Metadata Only
                     </span>
                   )}
@@ -582,9 +616,9 @@ export const Adult18Section: React.FC = () => {
                       target="_blank"
                       rel="noopener noreferrer"
                       title="Official Broadcaster Website"
-                      className="p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700"
+                      className="min-w-[44px] min-h-[44px] p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 flex items-center justify-center"
                     >
-                      <ExternalLink className="w-3.5 h-3.5" />
+                      <ExternalLink className="w-4 h-4" />
                     </a>
                   )}
                 </div>
@@ -596,7 +630,7 @@ export const Adult18Section: React.FC = () => {
             <div className="flex justify-center pt-2">
               <button
                 onClick={() => setPageLimit(prev => prev + 48)}
-                className="px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-rose-400 cursor-pointer"
+                className="min-h-[44px] px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-rose-400 cursor-pointer"
               >
                 Load More 18+ Channels ({filteredDirectory.length - pageLimit} remaining)
               </button>

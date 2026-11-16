@@ -38,6 +38,7 @@ export const BrowseChannelsHub: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedLanguage, setSelectedLanguage] = useState<string>('All');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [pageLimit, setPageLimit] = useState<number>(24);
 
   const filterTabs = [
     { id: 'All', label: 'All Channels', icon: Layers },
@@ -137,12 +138,13 @@ export const BrowseChannelsHub: React.FC = () => {
         </div>
 
         {/* View Mode Toggle & Quick Action */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           <div className="bg-slate-950 p-1 rounded-xl border border-slate-800 flex items-center gap-1">
             <button
               onClick={() => setViewMode('grid')}
               title="Grid View"
-              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+              aria-label="Grid View"
+              className={`min-w-[40px] min-h-[40px] p-2 rounded-lg transition-colors cursor-pointer flex items-center justify-center ${
                 viewMode === 'grid' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -151,7 +153,8 @@ export const BrowseChannelsHub: React.FC = () => {
             <button
               onClick={() => setViewMode('list')}
               title="Compact List View"
-              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+              aria-label="Compact List View"
+              className={`min-w-[40px] min-h-[40px] p-2 rounded-lg transition-colors cursor-pointer flex items-center justify-center ${
                 viewMode === 'list' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -161,7 +164,7 @@ export const BrowseChannelsHub: React.FC = () => {
 
           <button
             onClick={() => setCurrentTab('ott')}
-            className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+            className="min-h-[44px] px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
           >
             <Layers className="w-3.5 h-3.5 text-red-400" />
             <span>JioTV &amp; OTT Hub</span>
@@ -177,8 +180,11 @@ export const BrowseChannelsHub: React.FC = () => {
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveFilter(tab.id)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-medium whitespace-nowrap shrink-0 transition-all cursor-pointer flex items-center gap-1.5 ${
+              onClick={() => {
+                setActiveFilter(tab.id);
+                setPageLimit(24);
+              }}
+              className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs font-medium whitespace-nowrap shrink-0 transition-all cursor-pointer flex items-center gap-1.5 ${
                 isActive
                   ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20'
                   : 'bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white'
@@ -193,23 +199,29 @@ export const BrowseChannelsHub: React.FC = () => {
 
       {/* Search & Language Dropdown Controls */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2 border-t border-slate-800/80">
-        <div className="relative flex-1 max-w-md">
+        <div className="relative flex-1 sm:max-w-md">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="Search channel name, show or broadcaster..."
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-xs bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-amber-500/60 transition-colors"
+            onChange={e => {
+              setSearchQuery(e.target.value);
+              setPageLimit(24);
+            }}
+            className="w-full min-h-[44px] pl-9 pr-4 py-2 text-base sm:text-xs bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-amber-500/60 transition-colors"
           />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <label className="text-xs text-slate-400 font-medium shrink-0">Language:</label>
           <select
             value={selectedLanguage}
-            onChange={e => setSelectedLanguage(e.target.value)}
-            className="px-3 py-2 text-xs bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-amber-500/60 cursor-pointer"
+            onChange={e => {
+              setSelectedLanguage(e.target.value);
+              setPageLimit(24);
+            }}
+            className="flex-1 sm:flex-initial min-h-[44px] px-3 py-2 text-base sm:text-xs bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-amber-500/60 cursor-pointer"
           >
             {ALL_LANGUAGES.map(lang => (
               <option key={lang} value={lang}>
@@ -224,8 +236,9 @@ export const BrowseChannelsHub: React.FC = () => {
                 setSearchQuery('');
                 setSelectedLanguage('All');
                 setActiveFilter('All');
+                setPageLimit(24);
               }}
-              className="text-xs text-amber-400 hover:underline cursor-pointer shrink-0 ml-1"
+              className="min-h-[44px] px-3 text-xs text-amber-400 hover:underline cursor-pointer shrink-0"
             >
               Clear
             </button>
@@ -241,8 +254,8 @@ export const BrowseChannelsHub: React.FC = () => {
           <p className="text-xs text-slate-400 mt-1">Try clearing filters or searching for another term</p>
         </div>
       ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {filteredChannels.map(channel => {
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {filteredChannels.slice(0, pageLimit).map(channel => {
             const active = isChannelActive(channel);
             const fav = isFavorite(channel.id);
 
@@ -280,9 +293,9 @@ export const BrowseChannelsHub: React.FC = () => {
                         toggleFavorite(channel.id);
                       }}
                       title={fav ? 'Remove from favorites' : 'Add to favorites'}
-                      className="text-slate-400 hover:text-red-500 p-1 cursor-pointer transition-colors"
+                      className="min-w-[40px] min-h-[40px] text-slate-400 hover:text-red-500 p-2 cursor-pointer transition-colors flex items-center justify-center"
                     >
-                      <Heart className={`w-3.5 h-3.5 ${fav ? 'fill-red-500 text-red-500' : ''}`} />
+                      <Heart className={`w-4 h-4 ${fav ? 'fill-red-500 text-red-500' : ''}`} />
                     </button>
                   </div>
 
@@ -294,6 +307,7 @@ export const BrowseChannelsHub: React.FC = () => {
                           src={channel.logoUrl}
                           alt={channel.name}
                           className="w-full h-full object-cover"
+                          loading="lazy"
                           referrerPolicy="no-referrer"
                           onError={e => {
                             (e.target as HTMLElement).style.display = 'none';
@@ -350,7 +364,7 @@ export const BrowseChannelsHub: React.FC = () => {
       ) : (
         /* Compact List View */
         <div className="divide-y divide-slate-800/80 rounded-2xl bg-slate-950/80 border border-slate-800 overflow-hidden">
-          {filteredChannels.map(channel => {
+          {filteredChannels.slice(0, pageLimit).map(channel => {
             const active = isChannelActive(channel);
             const fav = isFavorite(channel.id);
 
@@ -369,6 +383,7 @@ export const BrowseChannelsHub: React.FC = () => {
                         src={channel.logoUrl}
                         alt={channel.name}
                         className="w-full h-full object-cover"
+                        loading="lazy"
                         referrerPolicy="no-referrer"
                       />
                     ) : (
@@ -390,7 +405,7 @@ export const BrowseChannelsHub: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center gap-2 shrink-0">
                   <span className="text-[11px] text-slate-400 font-mono hidden sm:inline">
                     {channel.category}
                   </span>
@@ -399,21 +414,35 @@ export const BrowseChannelsHub: React.FC = () => {
                       e.stopPropagation();
                       toggleFavorite(channel.id);
                     }}
-                    className="text-slate-400 hover:text-red-500 p-1 cursor-pointer"
+                    className="min-w-[40px] min-h-[40px] text-slate-400 hover:text-red-500 p-2 cursor-pointer flex items-center justify-center"
                   >
-                    <Heart className={`w-3.5 h-3.5 ${fav ? 'fill-red-500 text-red-500' : ''}`} />
+                    <Heart className={`w-4 h-4 ${fav ? 'fill-red-500 text-red-500' : ''}`} />
                   </button>
                   <button
-                    onClick={() => playChannel(channel)}
-                    className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-sm"
+                    onClick={e => {
+                      e.stopPropagation();
+                      playChannel(channel);
+                    }}
+                    className="min-h-[40px] px-3.5 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-sm"
                   >
-                    <Play className="w-3 h-3 fill-slate-950" />
+                    <Play className="w-3.5 h-3.5 fill-slate-950" />
                     <span>Play</span>
                   </button>
                 </div>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {filteredChannels.length > pageLimit && (
+        <div className="flex justify-center pt-1">
+          <button
+            onClick={() => setPageLimit(prev => prev + 24)}
+            className="min-h-[44px] px-6 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-amber-400 cursor-pointer"
+          >
+            Load More Channels ({filteredChannels.length - pageLimit} remaining)
+          </button>
         </div>
       )}
 

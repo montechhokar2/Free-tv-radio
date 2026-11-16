@@ -28,10 +28,10 @@ export const LanguageCategoriesBar: React.FC<LanguageCategoriesBarProps> = ({
   if (showCards) {
     return (
       <section className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="font-display text-xl font-bold text-white flex items-center gap-2">
-              <Languages className="w-5 h-5 text-amber-400" />
+            <h2 className="font-display text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+              <Languages className="w-5 h-5 text-amber-400 shrink-0" />
               <span>Browse by Language · भाषाएं</span>
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
@@ -41,15 +41,15 @@ export const LanguageCategoriesBar: React.FC<LanguageCategoriesBarProps> = ({
           {selectedLanguage !== 'All' && (
             <button
               onClick={() => handleSelect('All')}
-              className="text-xs text-amber-400 hover:text-amber-300 font-medium cursor-pointer"
+              className="min-h-[40px] px-2.5 text-xs text-amber-400 hover:text-amber-300 font-medium cursor-pointer"
             >
               Reset to All
             </button>
           )}
         </div>
 
-        {/* Horizontal Scrollable Language Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
+        {/* Responsive Language Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-3">
           {LANGUAGE_CATEGORIES.map(cat => {
             const isSelected = selectedLanguage === cat.name;
             const count = getLanguageCount(cat.name);
@@ -102,7 +102,7 @@ export const LanguageCategoriesBar: React.FC<LanguageCategoriesBarProps> = ({
           <button
             key={cat.id}
             onClick={() => handleSelect(cat.name)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap shrink-0 transition-colors cursor-pointer flex items-center gap-1.5 ${
+            className={`min-h-[40px] px-3 py-2 rounded-xl text-xs font-medium whitespace-nowrap shrink-0 transition-colors cursor-pointer flex items-center gap-1.5 ${
               isSelected
                 ? 'bg-amber-500 text-slate-950 font-bold shadow-sm shadow-amber-500/20'
                 : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800'

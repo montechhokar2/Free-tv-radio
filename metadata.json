@@ -3,4 +3,4 @@
   "description": "Watch free-to-air live TV channels and listen to free online radio stations from India and across the world. Created by Monte Chhokar.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
+} 

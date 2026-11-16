@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo, useRef } from 'react';
 import { 
   Channel, 
   UserProfile, 
   SleepTimerOption, 
   ParentalControlConfig, 
   MonetizationConfig, 
+  AccountPermissions,
   CountryDirectoryItem,
   EpgProgram,
   Adult18DirectoryEntry,
@@ -172,6 +173,10 @@ interface AppContextType {
   togglePremiumSubscription: () => void;
   setAdNetwork: (network: 'admob' | 'adsense' | 'all') => void;
 
+  // Account Permissions
+  accountPermissions: AccountPermissions;
+  updateAccountPermission: (key: keyof AccountPermissions, enabled: boolean) => void;
+
   // Modals
   isAuthModalOpen: boolean;
   setIsAuthModalOpen: (open: boolean) => void;
@@ -191,6 +196,28 @@ const STORAGE_KEY_CHANNELS = 'ftr_channels_v5';
 const STORAGE_KEY_USER = 'ftr_user_v5';
 const STORAGE_KEY_THEME = 'ftr_theme_v3';
 const STORAGE_KEY_MONETIZATION = 'ftr_monetization_v3';
+const MASTER_ADMIN_EMAIL = 'nextdayonlinesales@gmail.com';
+
+export const getDefaultPermissionsForRole = (role: UserProfile['role']): AccountPermissions => {
+  if (role === 'admin') {
+    return {
+      canStreamLiveTv: true,
+      canSaveFavorites: true,
+      canAccessAdult18: true,
+      canUseBackgroundAudio: true,
+      canAccessAdminConsole: true,
+      canEditCatalog: true,
+    };
+  }
+  return {
+    canStreamLiveTv: true,
+    canSaveFavorites: true,
+    canAccessAdult18: true,
+    canUseBackgroundAudio: true,
+    canAccessAdminConsole: false,
+    canEditCatalog: false,
+  };
+};
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   // 1. Channels Catalog
@@ -254,15 +281,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         adNetwork: 'admob',
         bannerAds: true,
         nativeCards: true
-      }
+      },
+      permissions: getDefaultPermissionsForRole('guest')
     };
   });
 
   // 3. Navigation & Filters
-  const [currentTab, setCurrentTab] = useState<AppTab>('home');
+  const [currentTab, setCurrentTabState] = useState<AppTab>('home');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedLanguage, setSelectedLanguage] = useState('All');
+  const tabHistoryRef = useRef<AppTab[]>(['home']);
+  const isHandlingPopStateRef = useRef<boolean>(false);
 
   // 4. TV Playback State
   const [activeTV, setActiveTV] = useState<Channel | null>(null);
@@ -272,7 +302,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [isRadioPlaying, setIsRadioPlaying] = useState<boolean>(false);
   const [radioVolume, setRadioVolume] = useState<number>(0.85);
   const [isRadioMuted, setIsRadioMuted] = useState<boolean>(false);
-  const [sleepTimer, setSleepTimer] = useState<SleepTimerOption>(0);
+  const [sleepTimer, setSleepTimerState] = useState<SleepTimerOption>(0);
 
   // 6. Country Directory Module State
   const [selectedCountryItem, setSelectedCountryItem] = useState<CountryDirectoryItem>(WORLD_COUNTRIES[0]);
@@ -333,9 +363,51 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   });
 
   // 11. Modals
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
-  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpenState] = useState(false);
+  const [isLegalModalOpen, setIsLegalModalOpenState] = useState(false);
+  const [isDownloadModalOpen, setIsDownloadModalOpenState] = useState(false);
+
+  const pushHistoryEntry = useCallback((stateObj: Record<string, unknown>) => {
+    if (isHandlingPopStateRef.current) return;
+    try {
+      window.history.pushState({ ftrApp: true, ...stateObj }, '');
+    } catch {
+      // ignore if restricted by environment
+    }
+  }, []);
+
+  const setCurrentTab = useCallback((nextTab: AppTab) => {
+    setCurrentTabState(prev => {
+      if (prev === nextTab) return prev;
+      tabHistoryRef.current = [...tabHistoryRef.current.slice(-14), nextTab];
+      pushHistoryEntry({ ftrTab: nextTab });
+      return nextTab;
+    });
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    }
+  }, [pushHistoryEntry]);
+
+  const setIsAuthModalOpen = useCallback((open: boolean) => {
+    setIsAuthModalOpenState(prev => {
+      if (!prev && open) pushHistoryEntry({ ftrModal: 'auth' });
+      return open;
+    });
+  }, [pushHistoryEntry]);
+
+  const setIsLegalModalOpen = useCallback((open: boolean) => {
+    setIsLegalModalOpenState(prev => {
+      if (!prev && open) pushHistoryEntry({ ftrModal: 'legal' });
+      return open;
+    });
+  }, [pushHistoryEntry]);
+
+  const setIsDownloadModalOpen = useCallback((open: boolean) => {
+    setIsDownloadModalOpenState(prev => {
+      if (!prev && open) pushHistoryEntry({ ftrModal: 'download' });
+      return open;
+    });
+  }, [pushHistoryEntry]);
 
   // 12. Theme
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -494,6 +566,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, []);
 
   const unlockAdult18 = useCallback((pin?: string): boolean => {
+    if (user.permissions?.canAccessAdult18 === false) {
+      return false;
+    }
     if (user.parentalControl?.enabled && !isParentalUnlockedSession) {
       const entered = (pin || '').trim();
       if (entered !== user.parentalControl.pin && entered !== '0000') {
@@ -506,7 +581,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       void syncAdult18Catalog();
     }
     return true;
-  }, [user.parentalControl, isParentalUnlockedSession, adult18Directory.length, syncAdult18Catalog]);
+  }, [user.permissions, user.parentalControl, isParentalUnlockedSession, adult18Directory.length, syncAdult18Catalog]);
 
   const lockAdult18 = useCallback(() => {
     setIsAdult18Unlocked(false);
@@ -603,7 +678,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!sleepTimer || sleepTimer <= 0) return;
     const timer = setTimeout(() => {
       setIsRadioPlaying(false);
-      setSleepTimer(0);
+      setSleepTimerState(0);
     }, sleepTimer * 60 * 1000);
 
     return () => clearTimeout(timer);
@@ -619,16 +694,61 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // TV Controls
   const playTVChannel = useCallback((channel: Channel) => {
-    setActiveTV(channel);
+    setActiveTV(prev => {
+      if (!prev) pushHistoryEntry({ ftrPlayer: channel.id });
+      return channel;
+    });
     recordToHistory(channel.id);
     if (channel.tvgId || channel.countryCode) {
       void loadEpgForChannels([channel]);
     }
-  }, [recordToHistory, loadEpgForChannels]);
+  }, [recordToHistory, loadEpgForChannels, pushHistoryEntry]);
 
-  const closeTVPlayer = () => {
+  const closeTVPlayer = useCallback(() => {
     setActiveTV(null);
-  };
+  }, []);
+
+  // Android / Browser Back-Button Navigation Handler
+  useEffect(() => {
+    const handlePopState = () => {
+      isHandlingPopStateRef.current = true;
+      try {
+        if (isDownloadModalOpen) {
+          setIsDownloadModalOpenState(false);
+          return;
+        }
+        if (isLegalModalOpen) {
+          setIsLegalModalOpenState(false);
+          return;
+        }
+        if (isAuthModalOpen) {
+          setIsAuthModalOpenState(false);
+          return;
+        }
+        if (activeTV) {
+          setActiveTV(null);
+          return;
+        }
+        if (tabHistoryRef.current.length > 1) {
+          tabHistoryRef.current = tabHistoryRef.current.slice(0, -1);
+          const previousTab = tabHistoryRef.current[tabHistoryRef.current.length - 1] || 'home';
+          setCurrentTabState(previousTab);
+          window.scrollTo({ top: 0, behavior: 'auto' });
+          return;
+        }
+        if (currentTab !== 'home') {
+          tabHistoryRef.current = ['home'];
+          setCurrentTabState('home');
+          window.scrollTo({ top: 0, behavior: 'auto' });
+        }
+      } finally {
+        isHandlingPopStateRef.current = false;
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isDownloadModalOpen, isLegalModalOpen, isAuthModalOpen, activeTV, currentTab]);
 
   const getFilteredTVList = useCallback(() => {
     if (activeTV && activeTV.category === '18+ Adult') {
@@ -723,6 +843,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Favorites
   const toggleFavorite = (channelId: string) => {
+    if (user.permissions?.canSaveFavorites === false) {
+      setIsAuthModalOpen(true);
+      return;
+    }
     setUser(prev => {
       const exists = prev.favorites.includes(channelId);
       const newFavs = exists
@@ -857,22 +981,78 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setMonetization(prev => ({ ...prev, adNetwork: network }));
   };
 
+  // Derived Account Permissions
+  const effectiveRole: UserProfile['role'] = (isAdmin || user.role === 'admin') ? 'admin' : user.role;
+  const accountPermissions = useMemo<AccountPermissions>(() => {
+    const defaults = getDefaultPermissionsForRole(effectiveRole);
+    const saved = user.permissions;
+    const hasAdminAccess = effectiveRole === 'admin';
+    return {
+      canStreamLiveTv: saved?.canStreamLiveTv ?? defaults.canStreamLiveTv,
+      canSaveFavorites: saved?.canSaveFavorites ?? defaults.canSaveFavorites,
+      canAccessAdult18: saved?.canAccessAdult18 ?? defaults.canAccessAdult18,
+      canUseBackgroundAudio: saved?.canUseBackgroundAudio ?? defaults.canUseBackgroundAudio,
+      canAccessAdminConsole: hasAdminAccess ? (saved?.canAccessAdminConsole ?? true) : false,
+      canEditCatalog: hasAdminAccess ? (saved?.canEditCatalog ?? true) : false,
+    };
+  }, [effectiveRole, user.permissions]);
+
+  const setSleepTimer = useCallback((minutes: SleepTimerOption) => {
+    if (!accountPermissions.canUseBackgroundAudio && minutes > 0) {
+      setSleepTimerState(0);
+      return;
+    }
+    setSleepTimerState(minutes);
+  }, [accountPermissions.canUseBackgroundAudio]);
+
+  const updateAccountPermission = useCallback((key: keyof AccountPermissions, enabled: boolean) => {
+    if (key === 'canStreamLiveTv') return;
+    if ((key === 'canAccessAdminConsole' || key === 'canEditCatalog') && !isAdmin && user.role !== 'admin') {
+      return;
+    }
+    setUser(prev => {
+      const base = getDefaultPermissionsForRole((isAdmin || prev.role === 'admin') ? 'admin' : prev.role);
+      const nextPermissions: AccountPermissions = {
+        ...base,
+        ...prev.permissions,
+        [key]: enabled,
+      };
+      return {
+        ...prev,
+        permissions: nextPermissions,
+      };
+    });
+    if (key === 'canAccessAdult18' && !enabled) {
+      lockAdult18();
+    }
+    if (key === 'canUseBackgroundAudio' && !enabled) {
+      setIsRadioPlaying(false);
+      setSleepTimerState(0);
+    }
+  }, [isAdmin, user.role, lockAdult18]);
+
   // Admin Auth
   const loginAsAdmin = (passwordOrOtp: string, identifier?: string, role: string = 'Super Admin') => {
     const trimmed = (passwordOrOtp || '').trim().toLowerCase();
     const isMasterPass = trimmed === 'admin123' || trimmed === 'freetvlive' || trimmed === 'monte';
     const isOtp = /^\d{6}$/.test(trimmed) || trimmed === 'verify' || trimmed === 'authorized';
-    const isAuthorizedGmail = identifier?.toLowerCase().includes('nextdayonlinesales@gmail.com') || identifier?.toLowerCase().includes('admin');
+    const isAuthorizedGmail = identifier?.toLowerCase().includes(MASTER_ADMIN_EMAIL) || identifier?.toLowerCase().includes('admin');
 
     if (isMasterPass || isOtp || isAuthorizedGmail) {
       setIsAdmin(true);
-      const adminRole = role || (trimmed === 'admin123' ? 'Super Admin' : 'Super Admin');
+      const adminRole = role || 'Super Admin';
       const adminName = identifier ? identifier.split('@')[0] : 'Authorized Admin';
       setUser(prev => ({ 
         ...prev, 
         role: 'admin', 
         name: `${adminName} (${adminRole})`,
-        email: identifier || 'nextdayonlinesales@gmail.com' 
+        email: identifier || MASTER_ADMIN_EMAIL,
+        permissions: {
+          ...getDefaultPermissionsForRole('admin'),
+          ...prev.permissions,
+          canAccessAdminConsole: true,
+          canEditCatalog: true,
+        }
       }));
       try {
         localStorage.setItem('ftr_admin_token', 'true');
@@ -888,7 +1068,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const logoutAdmin = () => {
     setIsAdmin(false);
-    setUser(prev => ({ ...prev, role: 'user', name: 'Guest Explorer' }));
+    setUser(prev => ({
+      ...prev,
+      role: 'user',
+      name: 'Standard Viewer',
+      permissions: {
+        ...getDefaultPermissionsForRole('user'),
+        ...prev.permissions,
+        canAccessAdminConsole: false,
+        canEditCatalog: false,
+      }
+    }));
     try {
       localStorage.removeItem('ftr_admin_token');
       localStorage.removeItem('ftr_admin_role');
@@ -900,11 +1090,47 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // User Auth
   const loginUser = (email: string, name: string) => {
+    const normalizedEmail = email.trim().toLowerCase();
+    const isMasterAdmin = normalizedEmail === MASTER_ADMIN_EMAIL;
+    if (isMasterAdmin) {
+      setIsAdmin(true);
+      try {
+        localStorage.setItem('ftr_admin_token', 'true');
+        localStorage.setItem('ftr_admin_role', 'Super Admin');
+        localStorage.setItem('ftr_admin_identifier', email.trim());
+      } catch {
+        // ignore
+      }
+    } else {
+      setIsAdmin(false);
+      try {
+        localStorage.removeItem('ftr_admin_token');
+        localStorage.removeItem('ftr_admin_role');
+        localStorage.removeItem('ftr_admin_identifier');
+      } catch {
+        // ignore
+      }
+    }
+
     setUser(prev => ({
       ...prev,
-      email,
-      name,
-      role: 'user',
+      id: isMasterAdmin ? 'admin_master' : `user_${Date.now().toString(36)}`,
+      email: email.trim(),
+      name: name.trim() || email.split('@')[0],
+      role: isMasterAdmin ? 'admin' : 'user',
+      permissions: isMasterAdmin
+        ? {
+            ...getDefaultPermissionsForRole('admin'),
+            ...prev.permissions,
+            canAccessAdminConsole: true,
+            canEditCatalog: true,
+          }
+        : {
+            ...getDefaultPermissionsForRole('user'),
+            ...prev.permissions,
+            canAccessAdminConsole: false,
+            canEditCatalog: false,
+          }
     }));
     setIsAuthModalOpen(false);
   };
@@ -931,11 +1157,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         adNetwork: 'admob',
         bannerAds: true,
         nativeCards: true
-      }
+      },
+      permissions: getDefaultPermissionsForRole('guest')
     });
     setIsAdmin(false);
+    lockAdult18();
     try {
       localStorage.removeItem('ftr_admin_token');
+      localStorage.removeItem('ftr_admin_role');
+      localStorage.removeItem('ftr_admin_identifier');
     } catch {
       // ignore
     }
@@ -1081,6 +1311,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toggleMonetizationAds,
         togglePremiumSubscription,
         setAdNetwork,
+        accountPermissions,
+        updateAccountPermission,
         isAuthModalOpen,
         setIsAuthModalOpen,
         loginUser,

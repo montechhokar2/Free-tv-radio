@@ -40,6 +40,11 @@ export const CountryDirectorySection: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedRegion, setSelectedRegion] = useState<string>('All');
+  const [pageLimit, setPageLimit] = useState(36);
+
+  useEffect(() => {
+    setPageLimit(36);
+  }, [selectedCountryItem.code, selectedCategory, searchQuery]);
 
   // Load channels when selected country changes
   useEffect(() => {
@@ -107,7 +112,7 @@ export const CountryDirectorySection: React.FC = () => {
             </div>
             <button
               onClick={closeTVPlayer}
-              className="text-xs text-slate-400 hover:text-white flex items-center gap-1 cursor-pointer"
+              className="min-h-[40px] px-2.5 py-1.5 rounded-lg text-xs text-slate-400 hover:text-white flex items-center gap-1 cursor-pointer"
             >
               <span>Close Player</span>
             </button>
@@ -117,7 +122,7 @@ export const CountryDirectorySection: React.FC = () => {
       )}
 
       {/* Hero Header Banner */}
-      <section className="relative rounded-3xl p-6 sm:p-10 bg-gradient-to-r from-sky-950/70 via-slate-900 to-amber-950/40 border border-slate-800 shadow-xl overflow-hidden">
+      <section className="relative rounded-3xl p-5 sm:p-8 lg:p-10 bg-gradient-to-r from-sky-950/70 via-slate-900 to-amber-950/40 border border-slate-800 shadow-xl overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
         
         <div className="relative z-10 max-w-2xl">
@@ -126,7 +131,7 @@ export const CountryDirectorySection: React.FC = () => {
             <span>Country-Wise Channel Directory</span>
           </div>
 
-          <h1 className="font-display text-2xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
+          <h1 className="font-display text-fluid-hero font-extrabold text-white tracking-tight leading-tight">
             Worldwide Live TV by Country
           </h1>
 
@@ -150,14 +155,14 @@ export const CountryDirectorySection: React.FC = () => {
       {/* Region and Country Selector Hub */}
       <div className="space-y-4">
         {/* Region Filter Tabs */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none text-xs">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
             <span className="text-slate-400 font-semibold shrink-0 mr-1">Region:</span>
             {regions.map(r => (
               <button
                 key={r}
                 onClick={() => setSelectedRegion(r)}
-                className={`px-3 py-1 rounded-xl text-xs font-medium whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
+                className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
                   selectedRegion === r
                     ? 'bg-amber-500 text-slate-950 font-bold'
                     : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800'
@@ -172,21 +177,22 @@ export const CountryDirectorySection: React.FC = () => {
             onClick={() => loadCountryChannels(selectedCountryItem)}
             disabled={isLoadingCountryChannels}
             title="Refresh current country streams"
-            className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white transition-colors cursor-pointer shrink-0"
+            aria-label="Refresh current country streams"
+            className="min-w-[44px] min-h-[44px] p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white transition-colors cursor-pointer shrink-0 flex items-center justify-center"
           >
             <RefreshCw className={`w-4 h-4 ${isLoadingCountryChannels ? 'animate-spin text-amber-400' : ''}`} />
           </button>
         </div>
 
         {/* Country Flags Carousel */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2.5">
           {filteredCountries.map(country => {
             const isSelected = selectedCountryItem.code === country.code;
             return (
               <button
                 key={country.code}
                 onClick={() => setSelectedCountryItem(country)}
-                className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center gap-3 ${
+                className={`min-h-[56px] p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center gap-3 ${
                   isSelected
                     ? 'bg-amber-500/15 border-amber-500/50 shadow-md shadow-amber-500/10'
                     : 'bg-slate-900/80 hover:bg-slate-850 border-slate-800 hover:border-slate-700'
@@ -209,30 +215,30 @@ export const CountryDirectorySection: React.FC = () => {
 
       {/* Selected Country Banner & Channel Controls */}
       <div className="p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <span className="text-3xl">{selectedCountryItem.flag}</span>
-          <div>
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <span>{selectedCountryItem.name} Television Network</span>
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="text-3xl shrink-0">{selectedCountryItem.flag}</span>
+          <div className="min-w-0">
+            <h2 className="text-base font-bold text-white flex flex-wrap items-center gap-2">
+              <span className="truncate">{selectedCountryItem.name} Television Network</span>
               <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold border border-emerald-500/30">
                 {displayChannels.length} Streams
               </span>
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-400 mt-0.5 truncate">
               Languages: {selectedCountryItem.popularLanguage} · Region: {selectedCountryItem.region}
             </p>
           </div>
         </div>
 
         {/* Search inside Country */}
-        <div className="relative w-full md:w-72">
+        <div className="relative w-full md:w-72 shrink-0">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder={`Search ${selectedCountryItem.name} channels...`}
-            className="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-amber-500 transition-colors"
+            className="w-full min-h-[44px] pl-9 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-base sm:text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-amber-500 transition-colors"
           />
         </div>
       </div>
@@ -243,7 +249,7 @@ export const CountryDirectorySection: React.FC = () => {
           <button
             key={cat}
             onClick={() => setSelectedCategory(cat)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
+            className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
               selectedCategory === cat
                 ? 'bg-white text-slate-950 font-bold shadow-sm'
                 : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800'
@@ -273,8 +279,9 @@ export const CountryDirectorySection: React.FC = () => {
           8. Play button
       */}
       {!isLoadingCountryChannels && displayChannels.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {displayChannels.map((channel, idx) => {
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {displayChannels.slice(0, pageLimit).map((channel, idx) => {
             const isFav = isFavorite(channel.id);
             const isCurrentPlaying = activeTV?.id === channel.id;
 
@@ -342,7 +349,7 @@ export const CountryDirectorySection: React.FC = () => {
                 <div className="p-3 bg-slate-950/60 border-t border-slate-800 flex items-center justify-between gap-2">
                   <button
                     onClick={() => playTVChannel(channel)}
-                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    className={`flex-1 min-h-[44px] py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                       isCurrentPlaying
                         ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
                         : 'bg-slate-800 hover:bg-amber-500 text-slate-200 hover:text-slate-950'
@@ -355,18 +362,30 @@ export const CountryDirectorySection: React.FC = () => {
                   <button
                     onClick={() => toggleFavorite(channel.id)}
                     title={isFav ? 'Remove from favorites' : 'Add to favorites'}
-                    className={`p-2 rounded-xl border transition-colors cursor-pointer ${
+                    className={`min-w-[44px] min-h-[44px] p-2 rounded-xl border transition-colors cursor-pointer flex items-center justify-center ${
                       isFav 
                         ? 'bg-rose-500/10 border-rose-500/30 text-rose-400' 
                         : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
                     }`}
                   >
-                    <Heart className={`w-3.5 h-3.5 ${isFav ? 'fill-rose-500' : ''}`} />
+                    <Heart className={`w-4 h-4 ${isFav ? 'fill-rose-500' : ''}`} />
                   </button>
                 </div>
               </div>
             );
           })}
+          </div>
+
+          {displayChannels.length > pageLimit && (
+            <div className="flex justify-center pt-1">
+              <button
+                onClick={() => setPageLimit(prev => prev + 36)}
+                className="min-h-[44px] px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-amber-400 cursor-pointer"
+              >
+                Load More Channels ({displayChannels.length - pageLimit} remaining)
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -383,7 +402,7 @@ export const CountryDirectorySection: React.FC = () => {
               setSearchQuery('');
               setSelectedCategory('All');
             }}
-            className="px-4 py-2 rounded-xl bg-amber-500 text-slate-950 text-xs font-bold hover:bg-amber-400 transition-colors cursor-pointer"
+            className="min-h-[44px] px-5 py-2.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-bold hover:bg-amber-400 transition-colors cursor-pointer"
           >
             Reset Filters
           </button>

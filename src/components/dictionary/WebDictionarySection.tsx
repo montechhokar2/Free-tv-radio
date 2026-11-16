@@ -65,6 +65,11 @@ export const WebDictionarySection: React.FC = () => {
   const [probeResults, setProbeResults] = useState<Record<string, boolean>>({});
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedLanguage, setSelectedLanguage] = useState<string>('All');
+  const [pageLimit, setPageLimit] = useState<number>(48);
+
+  useEffect(() => {
+    setPageLimit(48);
+  }, [selectedCountry.code, selectedLetter, selectedCategory, selectedLanguage, searchQuery]);
 
   // Load directory when country changes
   useEffect(() => {
@@ -260,7 +265,7 @@ export const WebDictionarySection: React.FC = () => {
           <div className="flex items-center gap-3 shrink-0 w-full md:w-auto">
             <button
               onClick={() => handleWatchLive(featuredBroadcast)}
-              className="w-full md:w-auto px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 transition-all transform active:scale-95 cursor-pointer"
+              className="w-full md:w-auto min-h-[44px] px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 transition-all transform active:scale-95 cursor-pointer"
             >
               <Play className="w-4 h-4 fill-slate-950" />
               <span>Watch Featured Broadcast</span>
@@ -270,7 +275,7 @@ export const WebDictionarySection: React.FC = () => {
       )}
 
       {/* Header Banner */}
-      <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 p-6 sm:p-8 shadow-xl">
+      <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 p-5 sm:p-8 shadow-xl">
         <div className="max-w-3xl">
           <div className="flex items-center gap-2 mb-2">
             <span className="px-2.5 py-0.5 rounded bg-amber-500 text-slate-950 text-[10px] font-black tracking-widest uppercase">
@@ -279,7 +284,7 @@ export const WebDictionarySection: React.FC = () => {
             <span className="text-xs text-slate-400">Live TV Channel Dictionary &amp; Indexer</span>
           </div>
 
-          <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight leading-tight mb-2">
+          <h1 className="font-display text-fluid-title font-extrabold text-white tracking-tight leading-tight mb-2">
             Web TV Channels Dictionary
           </h1>
 
@@ -296,7 +301,7 @@ export const WebDictionarySection: React.FC = () => {
                   setSelectedCountry(ctry);
                   setSelectedLetter('ALL');
                 }}
-                className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer flex items-center gap-2 ${
+                className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer flex items-center gap-2 ${
                   selectedCountry.code === ctry.code
                     ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
                     : 'bg-slate-950/80 hover:bg-slate-800 text-slate-300 border border-slate-800'
@@ -312,7 +317,7 @@ export const WebDictionarySection: React.FC = () => {
 
       {/* A-Z Alphabetical Dictionary Filter Bar */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between text-xs text-slate-400">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
           <div className="flex items-center gap-2 font-semibold text-slate-300">
             <BookOpen className="w-4 h-4 text-amber-400" />
             <span>Alphabetical Dictionary Index:</span>
@@ -323,14 +328,14 @@ export const WebDictionarySection: React.FC = () => {
           </span>
         </div>
 
-        <div className="flex items-center gap-1 overflow-x-auto py-1 scrollbar-none bg-slate-950/60 p-1.5 rounded-2xl border border-slate-800">
+        <div className="flex items-center gap-1 overflow-x-auto py-1.5 scrollbar-none bg-slate-950/60 p-1.5 rounded-2xl border border-slate-800">
           {ALPHABET.map(letter => {
             const isActive = selectedLetter === letter;
             return (
               <button
                 key={letter}
                 onClick={() => setSelectedLetter(letter)}
-                className={`min-w-[34px] h-8 px-2 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                className={`min-w-[38px] min-h-[38px] px-2 rounded-lg text-xs font-bold shrink-0 transition-colors cursor-pointer ${
                   isActive
                     ? 'bg-amber-500 text-slate-950 shadow-sm'
                     : 'text-slate-400 hover:text-white hover:bg-slate-800'
@@ -351,7 +356,7 @@ export const WebDictionarySection: React.FC = () => {
               <button
                 key={lang}
                 onClick={() => setSelectedLanguage(lang)}
-                className={`px-3 py-1 rounded-xl text-xs whitespace-nowrap transition-colors cursor-pointer ${
+                className={`min-h-[38px] px-3 py-1.5 rounded-xl text-xs whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
                   isSelected
                     ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
                     : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800'
@@ -366,21 +371,22 @@ export const WebDictionarySection: React.FC = () => {
 
       {/* Search and Category Filter Toolbar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-slate-900/60 border border-slate-800 rounded-2xl">
-        <div className="relative flex-1 max-w-md">
+        <div className="relative flex-1 sm:max-w-md">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder={`Search ${selectedCountry.name} channels, callsigns, shows...`}
-            className="w-full pl-9 pr-8 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-500"
+            className="w-full min-h-[44px] pl-9 pr-10 py-2 bg-slate-950 border border-slate-800 rounded-xl text-base sm:text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-500"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+              aria-label="Clear search"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-white cursor-pointer"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-4 h-4" />
             </button>
           )}
         </div>
@@ -391,7 +397,7 @@ export const WebDictionarySection: React.FC = () => {
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
+              className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
                 selectedCategory === cat
                   ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 font-semibold'
                   : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
@@ -415,8 +421,9 @@ export const WebDictionarySection: React.FC = () => {
 
       {/* Dictionary Listings Grid */}
       {!isLoading && filteredChannels.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredChannels.slice(0, 60).map(item => {
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredChannels.slice(0, pageLimit).map(item => {
             const isAdded = addedIds[item.id];
             const isTested = probeResults[item.id];
             const isTesting = testingId === item.id;
@@ -435,6 +442,7 @@ export const WebDictionarySection: React.FC = () => {
                           src={item.logoUrl}
                           alt={item.name}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                          loading="lazy"
                           referrerPolicy="no-referrer"
                           onError={(e) => {
                             (e.target as HTMLElement).style.display = 'none';
@@ -476,7 +484,7 @@ export const WebDictionarySection: React.FC = () => {
                 <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between gap-2">
                   <button
                     onClick={() => handleWatchLive(item)}
-                    className="flex-1 py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/15 transition-all transform active:scale-95 cursor-pointer"
+                    className="flex-1 min-h-[44px] py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/15 transition-all transform active:scale-95 cursor-pointer"
                   >
                     <Play className="w-3.5 h-3.5 fill-slate-950" />
                     <span>Stream Live</span>
@@ -485,7 +493,7 @@ export const WebDictionarySection: React.FC = () => {
                   <button
                     onClick={() => handleAddToChannels(item)}
                     title="Add to My Channels"
-                    className={`p-2 rounded-xl border text-xs transition-colors cursor-pointer flex items-center justify-center ${
+                    className={`min-w-[44px] min-h-[44px] p-2 rounded-xl border text-xs transition-colors cursor-pointer flex items-center justify-center ${
                       isAdded
                         ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
                         : 'bg-slate-950 hover:bg-slate-800 border-slate-800 text-slate-300'
@@ -498,7 +506,7 @@ export const WebDictionarySection: React.FC = () => {
                     onClick={() => handleTestStream(item)}
                     disabled={isTesting}
                     title="Check Stream Health"
-                    className="p-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white text-xs transition-colors cursor-pointer"
+                    className="min-w-[44px] min-h-[44px] p-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white text-xs transition-colors cursor-pointer flex items-center justify-center"
                   >
                     <Activity className={`w-4 h-4 ${isTesting ? 'animate-spin text-amber-400' : isTested ? 'text-emerald-400' : ''}`} />
                   </button>
@@ -506,6 +514,18 @@ export const WebDictionarySection: React.FC = () => {
               </div>
             );
           })}
+          </div>
+
+          {filteredChannels.length > pageLimit && (
+            <div className="flex justify-center pt-1">
+              <button
+                onClick={() => setPageLimit(prev => prev + 48)}
+                className="min-h-[44px] px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-amber-400 cursor-pointer"
+              >
+                Load More Directory Entries ({filteredChannels.length - pageLimit} remaining)
+              </button>
+            </div>
+          )}
         </div>
       )}
 

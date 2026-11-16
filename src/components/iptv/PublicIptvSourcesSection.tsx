@@ -272,7 +272,7 @@ export const PublicIptvSourcesSection: React.FC = () => {
 
     return (
       <>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {visible.map((ch, idx) => {
             const isCurrent = activeTV?.id === ch.id;
             const isFav = isFavorite(ch.id);
@@ -339,7 +339,7 @@ export const PublicIptvSourcesSection: React.FC = () => {
                 <div className="flex items-center gap-2 pt-2 border-t border-slate-800/80">
                   <button
                     onClick={() => handlePlayStream(ch, list)}
-                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    className={`flex-1 min-h-[44px] py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                       isCurrent
                         ? 'bg-amber-500 text-slate-950'
                         : 'bg-slate-800 hover:bg-amber-500 text-slate-200 hover:text-slate-950'
@@ -351,13 +351,13 @@ export const PublicIptvSourcesSection: React.FC = () => {
                   <button
                     onClick={() => toggleFavorite(ch.id)}
                     title={isFav ? 'Remove Favorite' : 'Add to Favorites'}
-                    className={`p-2 rounded-xl border transition-colors cursor-pointer ${
+                    className={`min-w-[44px] min-h-[44px] p-2 rounded-xl border transition-colors cursor-pointer flex items-center justify-center ${
                       isFav
                         ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
                         : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
                     }`}
                   >
-                    <Heart className={`w-3.5 h-3.5 ${isFav ? 'fill-rose-500' : ''}`} />
+                    <Heart className={`w-4 h-4 ${isFav ? 'fill-rose-500' : ''}`} />
                   </button>
                 </div>
               </div>
@@ -369,7 +369,7 @@ export const PublicIptvSourcesSection: React.FC = () => {
           <div className="flex justify-center pt-3">
             <button
               onClick={() => setPageLimit(prev => prev + 48)}
-              className="px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-amber-400 cursor-pointer"
+              className="min-h-[44px] px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-amber-400 cursor-pointer"
             >
               Load More Channels ({list.length - pageLimit} remaining)
             </button>
@@ -420,8 +420,8 @@ export const PublicIptvSourcesSection: React.FC = () => {
                 4 Open-Source Repositories &amp; Docs
               </span>
             </div>
-            <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-white flex items-center gap-2.5">
-              <Globe className="w-7 h-7 text-sky-400" />
+            <h1 className="font-display text-fluid-title font-extrabold text-white flex items-center gap-2.5">
+              <Globe className="w-6 h-6 sm:w-7 sm:h-7 text-sky-400 shrink-0" />
               <span>Open IPTV &amp; Broadcaster Directory</span>
             </h1>
             <p className="text-xs sm:text-sm text-slate-400 max-w-3xl">
@@ -432,7 +432,7 @@ export const PublicIptvSourcesSection: React.FC = () => {
           <button
             onClick={() => void loadPublicIptvDirectory(true)}
             disabled={isLoadingPublicIptv}
-            className="self-start lg:self-auto px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold flex items-center gap-2 shadow-md shadow-amber-500/20 transition-colors cursor-pointer disabled:opacity-50"
+            className="self-start lg:self-auto min-h-[44px] px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold flex items-center gap-2 shadow-md shadow-amber-500/20 transition-colors cursor-pointer disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLoadingPublicIptv ? 'animate-spin' : ''}`} />
             <span>{isLoadingPublicIptv ? 'Syncing Repositories...' : 'Refresh All Sources'}</span>
@@ -497,7 +497,7 @@ export const PublicIptvSourcesSection: React.FC = () => {
         {/* Search + HTTPS filter toolbar */}
         {activeSourceTab !== 'playlist_docs' && (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-800/80">
-            <div className="relative flex-1 max-w-md">
+            <div className="relative flex-1 sm:max-w-md">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
@@ -507,21 +507,22 @@ export const PublicIptvSourcesSection: React.FC = () => {
                   setPageLimit(48);
                 }}
                 placeholder="Filter channels, broadcasters, or countries..."
-                className="w-full pl-9 pr-8 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-sky-500"
+                className="w-full min-h-[44px] pl-9 pr-10 py-2 bg-slate-950 border border-slate-800 rounded-xl text-base sm:text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-sky-500"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
+                  aria-label="Clear search"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-white cursor-pointer"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-4 h-4" />
                 </button>
               )}
             </div>
 
             <button
               onClick={() => setHttpsOnly(prev => !prev)}
-              className={`px-3 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer self-start sm:self-auto ${
+              className={`min-h-[44px] px-3.5 py-2 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer w-full sm:w-auto ${
                 httpsOnly
                   ? 'bg-sky-500/20 border-sky-500/40 text-sky-300'
                   : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
@@ -556,7 +557,7 @@ export const PublicIptvSourcesSection: React.FC = () => {
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <button
                 onClick={() => void handleSelectFcPlaylist('index')}
-                className={`px-3 py-1.5 rounded-xl font-bold cursor-pointer transition-colors ${
+                className={`min-h-[44px] px-3.5 py-2 rounded-xl font-bold cursor-pointer transition-colors ${
                   fcPlaylistMode === 'index'
                     ? 'bg-amber-500 text-slate-950'
                     : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800'
@@ -566,7 +567,7 @@ export const PublicIptvSourcesSection: React.FC = () => {
               </button>
               <button
                 onClick={() => void handleSelectFcPlaylist('worldcup')}
-                className={`px-3 py-1.5 rounded-xl font-bold cursor-pointer transition-colors ${
+                className={`min-h-[44px] px-3.5 py-2 rounded-xl font-bold cursor-pointer transition-colors ${
                   fcPlaylistMode === 'worldcup'
                     ? 'bg-amber-500 text-slate-950'
                     : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800'
@@ -581,7 +582,7 @@ export const PublicIptvSourcesSection: React.FC = () => {
           </div>
 
           {fcLoadingPlaylist || (isLoadingPublicIptv && !publicIptvDirectory) ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="h-44 rounded-2xl bg-slate-900/70 border border-slate-800 animate-pulse" />
               ))}
@@ -601,11 +602,11 @@ export const PublicIptvSourcesSection: React.FC = () => {
                   Parsed live from <span className="font-mono text-slate-300">subash9860/iptv-football-cricket</span> README broadcaster registry.
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs">
+              <div className="grid grid-cols-1 sm:flex sm:flex-wrap items-center gap-2 text-xs">
                 <select
                   value={fcRegionFilter}
                   onChange={e => setFcRegionFilter(e.target.value)}
-                  className="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-500"
+                  className="w-full sm:w-auto min-h-[44px] px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-base sm:text-xs text-white focus:outline-none focus:border-amber-500"
                 >
                   {fcRegions.map(r => (
                     <option key={r} value={r}>
@@ -615,7 +616,7 @@ export const PublicIptvSourcesSection: React.FC = () => {
                 </select>
                 <button
                   onClick={() => setFcOnlyIptvRows(prev => !prev)}
-                  className={`px-3 py-1.5 rounded-xl border font-semibold cursor-pointer ${
+                  className={`w-full sm:w-auto min-h-[44px] px-3.5 py-2 rounded-xl border font-semibold cursor-pointer ${
                     fcOnlyIptvRows
                       ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
                       : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
@@ -626,7 +627,49 @@ export const PublicIptvSourcesSection: React.FC = () => {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Mobile Card List (avoids wide table scrolling on phones) */}
+            <div className="md:hidden space-y-2.5">
+              {filteredDirectoryRows.map((row, idx) => (
+                <div
+                  key={`${row.country}-card-${idx}`}
+                  className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2 text-xs"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="font-bold text-white text-sm">{row.country}</div>
+                      <div className="text-[11px] text-slate-400">{row.region} · {row.broadcastType}</div>
+                    </div>
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold shrink-0 ${
+                        row.hasPublicIptv
+                          ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                          : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                      }`}
+                    >
+                      {row.hasPublicIptv ? (
+                        <CheckCircle2 className="w-3 h-3 shrink-0" />
+                      ) : (
+                        <XCircle className="w-3 h-3 shrink-0" />
+                      )}
+                      <span>{row.iptvStatus}</span>
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-1 text-[11px] pt-1 border-t border-slate-800/80">
+                    <div>
+                      <span className="text-slate-500 font-semibold">TV: </span>
+                      <span className="text-slate-200">{row.tvChannels}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 font-semibold">OTT: </span>
+                      <span className="text-slate-400">{row.ottPlatforms}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Tablet & Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-slate-800 text-slate-400 uppercase text-[10px] tracking-wider">
@@ -692,7 +735,7 @@ export const PublicIptvSourcesSection: React.FC = () => {
                 <button
                   key={preset.id}
                   onClick={() => void handleSelectFreePreset(preset.id, preset.url, preset.label)}
-                  className={`px-3 py-1.5 rounded-xl font-bold cursor-pointer transition-colors ${
+                  className={`min-h-[40px] px-3 py-1.5 rounded-xl font-bold cursor-pointer transition-colors ${
                     freePresetId === preset.id
                       ? 'bg-emerald-500 text-slate-950'
                       : 'bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800'
@@ -705,7 +748,7 @@ export const PublicIptvSourcesSection: React.FC = () => {
           </div>
 
           {freeLoading || (isLoadingPublicIptv && !publicIptvDirectory) ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="h-44 rounded-2xl bg-slate-900/70 border border-slate-800 animate-pulse" />
               ))}
@@ -738,7 +781,7 @@ export const PublicIptvSourcesSection: React.FC = () => {
                       'Worldwide Master'
                     )
                   }
-                  className={`px-3 py-1.5 rounded-xl font-bold cursor-pointer ${
+                  className={`min-h-[44px] px-3.5 py-2 rounded-xl font-bold cursor-pointer ${
                     iptvOrgActiveUrl.endsWith('/index.m3u')
                       ? 'bg-sky-500 text-slate-950'
                       : 'bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800'
@@ -754,7 +797,7 @@ export const PublicIptvSourcesSection: React.FC = () => {
                       'By Category'
                     )
                   }
-                  className={`px-3 py-1.5 rounded-xl font-bold cursor-pointer ${
+                  className={`min-h-[44px] px-3.5 py-2 rounded-xl font-bold cursor-pointer ${
                     iptvOrgActiveUrl.endsWith('/index.category.m3u')
                       ? 'bg-sky-500 text-slate-950'
                       : 'bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800'
@@ -769,7 +812,7 @@ export const PublicIptvSourcesSection: React.FC = () => {
                       setIptvOrgSelectedGroup(e.target.value);
                       setPageLimit(48);
                     }}
-                    className="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-sky-500"
+                    className="w-full sm:w-auto min-h-[44px] px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-base sm:text-xs text-white focus:outline-none focus:border-sky-500"
                   >
                     <option value="All">All Groups ({iptvOrgChannels.length})</option>
                     {iptvOrgGroups.map(g => (
@@ -791,7 +834,7 @@ export const PublicIptvSourcesSection: React.FC = () => {
                     <button
                       key={cat.playlistUrl}
                       onClick={() => void loadIptvOrgFeed(cat.playlistUrl, cat.name)}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer ${
+                      className={`min-h-[38px] px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                         isActive
                           ? 'bg-amber-500 text-slate-950 font-bold'
                           : 'bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800'
@@ -812,7 +855,7 @@ export const PublicIptvSourcesSection: React.FC = () => {
           )}
 
           {iptvOrgLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="h-44 rounded-2xl bg-slate-900/70 border border-slate-800 animate-pulse" />
               ))}
@@ -906,12 +949,12 @@ export const PublicIptvSourcesSection: React.FC = () => {
                 value={customTesterUrl}
                 onChange={e => setCustomTesterUrl(e.target.value)}
                 placeholder="https://iptv-org.github.io/iptv/categories/news.m3u"
-                className="flex-1 px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white font-mono focus:outline-none focus:border-amber-500"
+                className="flex-1 min-h-[44px] px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-base sm:text-xs text-white font-mono focus:outline-none focus:border-amber-500"
               />
               <button
                 type="submit"
                 disabled={customTesterLoading}
-                className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold cursor-pointer disabled:opacity-50"
+                className="min-h-[44px] px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold cursor-pointer disabled:opacity-50 shrink-0"
               >
                 {customTesterLoading ? 'Parsing M3U...' : 'Parse & Load Streams'}
               </button>

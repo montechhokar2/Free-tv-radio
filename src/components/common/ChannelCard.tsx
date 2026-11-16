@@ -31,6 +31,7 @@ export const ChannelCard: React.FC<ChannelCardProps> = ({ channel, compact = fal
             <img 
               src={channel.logoUrl} 
               alt={channel.name} 
+              loading="lazy"
               className="w-full h-full object-cover group-hover:scale-105 transition-transform"
               referrerPolicy="no-referrer"
               onError={(e) => {
@@ -68,7 +69,8 @@ export const ChannelCard: React.FC<ChannelCardProps> = ({ channel, compact = fal
             e.stopPropagation();
             toggleFavorite(channel.id);
           }}
-          className="min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-400 hover:text-red-400 transition-colors"
+          aria-label={isFav ? 'Remove Favorite' : 'Add to Favorites'}
+          className="min-w-[44px] min-h-[44px] flex items-center justify-center text-slate-400 hover:text-red-400 transition-colors cursor-pointer"
           title={isFav ? 'Remove Favorite' : 'Add to Favorites'}
         >
           <Heart className={`w-4 h-4 ${isFav ? 'fill-red-500 text-red-500' : ''}`} />
@@ -92,6 +94,7 @@ export const ChannelCard: React.FC<ChannelCardProps> = ({ channel, compact = fal
           <img 
             src={channel.logoUrl} 
             alt={channel.name} 
+            loading="lazy"
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 filter brightness-95 group-hover:brightness-105"
             referrerPolicy="no-referrer"
             onError={(e) => {
@@ -128,7 +131,8 @@ export const ChannelCard: React.FC<ChannelCardProps> = ({ channel, compact = fal
             e.stopPropagation();
             toggleFavorite(channel.id);
           }}
-          className="absolute top-2 right-2 min-w-[36px] min-h-[36px] rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm text-white flex items-center justify-center transition-colors cursor-pointer"
+          aria-label={isFav ? 'Remove Favorite' : 'Add to Favorites'}
+          className="absolute top-1.5 right-1.5 min-w-[44px] min-h-[44px] rounded-full bg-black/55 hover:bg-black/75 backdrop-blur-sm text-white flex items-center justify-center transition-colors cursor-pointer"
           title={isFav ? 'Remove Favorite' : 'Add to Favorites'}
         >
           <Heart className={`w-4 h-4 ${isFav ? 'fill-red-500 text-red-500' : ''}`} />

@@ -74,6 +74,22 @@ export const RadioDockPlayer: React.FC = () => {
     }
   }, [isRadioPlaying]);
 
+  // Cleanup audio element on unmount
+  useEffect(() => {
+    return () => {
+      const audio = audioRef.current;
+      if (audio) {
+        try {
+          audio.pause();
+          audio.removeAttribute('src');
+          audio.load();
+        } catch {
+          // ignore
+        }
+      }
+    };
+  }, []);
+
   // Volume sync
   useEffect(() => {
     const audio = audioRef.current;
@@ -82,13 +98,30 @@ export const RadioDockPlayer: React.FC = () => {
     audio.muted = isRadioMuted;
   }, [radioVolume, isRadioMuted]);
 
-  // Event handlers
+  // Event handlers + network stall recovery
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
+    let stallTimer: ReturnType<typeof setTimeout> | null = null;
+
     const onWaiting = () => setIsBuffering(true);
+    const onStalled = () => {
+      setIsBuffering(true);
+      if (stallTimer) clearTimeout(stallTimer);
+      stallTimer = setTimeout(() => {
+        if (activeRadio && isRadioPlaying && navigator.onLine) {
+          audio.src = activeRadio.backupUrl || activeRadio.streamUrl;
+          audio.load();
+          audio.play().catch(() => {});
+        }
+      }, 6500);
+    };
     const onPlaying = () => {
+      if (stallTimer) {
+        clearTimeout(stallTimer);
+        stallTimer = null;
+      }
       setIsBuffering(false);
       setStreamError(false);
     };
@@ -105,27 +138,88 @@ export const RadioDockPlayer: React.FC = () => {
     };
 
     audio.addEventListener('waiting', onWaiting);
+    audio.addEventListener('stalled', onStalled);
     audio.addEventListener('playing', onPlaying);
     audio.addEventListener('error', onError);
 
     return () => {
+      if (stallTimer) clearTimeout(stallTimer);
       audio.removeEventListener('waiting', onWaiting);
+      audio.removeEventListener('stalled', onStalled);
       audio.removeEventListener('playing', onPlaying);
       audio.removeEventListener('error', onError);
     };
-  }, [activeRadio]);
+  }, [activeRadio, isRadioPlaying]);
 
-  if (!activeRadio) return null;
+  // Register Android/Chrome Media Session notification & lock-screen controls
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
+    const ms = navigator.mediaSession;
+
+    if (!activeRadio) {
+      ms.playbackState = 'none';
+      return;
+    }
+
+    try {
+      if (typeof MediaMetadata !== 'undefined') {
+        ms.metadata = new MediaMetadata({
+          title: activeRadio.name,
+          artist: activeRadio.currentProgram || `${activeRadio.category} · ${activeRadio.language}`,
+          album: `${activeRadio.country} · Free TV & Radio Live`,
+          artwork: activeRadio.logoUrl
+            ? [{ src: activeRadio.logoUrl, sizes: '256x256', type: 'image/png' }]
+            : [],
+        });
+      }
+      ms.playbackState = isRadioPlaying ? 'playing' : 'paused';
+      ms.setActionHandler('play', () => {
+        if (!isRadioPlaying) toggleRadioPlay();
+      });
+      ms.setActionHandler('pause', () => {
+        if (isRadioPlaying) toggleRadioPlay();
+      });
+      ms.setActionHandler('previoustrack', () => playPrevRadio());
+      ms.setActionHandler('nexttrack', () => playNextRadio());
+      ms.setActionHandler('stop', () => closeRadioPlayer());
+    } catch {
+      // MediaSession not supported in some restricted WebViews
+    }
+
+    return () => {
+      try {
+        ms.setActionHandler('play', null);
+        ms.setActionHandler('pause', null);
+        ms.setActionHandler('previoustrack', null);
+        ms.setActionHandler('nexttrack', null);
+        ms.setActionHandler('stop', null);
+      } catch {
+        // ignore
+      }
+    };
+  }, [activeRadio, isRadioPlaying, toggleRadioPlay, playPrevRadio, playNextRadio, closeRadioPlayer]);
 
   const retryPlayback = () => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio || !activeRadio) return;
     setStreamError(false);
     setIsBuffering(true);
     audio.src = activeRadio.backupUrl || activeRadio.streamUrl;
     audio.load();
     audio.play().catch(() => setStreamError(true));
   };
+
+  useEffect(() => {
+    const onOnline = () => {
+      if (activeRadio && streamError && isRadioPlaying) {
+        retryPlayback();
+      }
+    };
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [activeRadio, streamError, isRadioPlaying]);
+
+  if (!activeRadio) return null;
 
   const timerOptions: SleepTimerOption[] = [0, 15, 30, 45, 60, 90];
 
@@ -137,7 +231,7 @@ export const RadioDockPlayer: React.FC = () => {
       {isMinimized ? (
         <aside
           aria-label="Compact Mini Radio Player"
-          className="fixed bottom-16 md:bottom-4 right-2 sm:right-6 z-40 bg-slate-900/95 border border-amber-500/35 rounded-full py-1.5 pl-2 pr-2 shadow-2xl backdrop-blur-xl transition-all duration-300 max-w-[calc(100vw-1rem)]"
+          className="fixed bottom-[calc(4.25rem+env(safe-area-inset-bottom))] md:bottom-4 right-2 sm:right-6 z-40 bg-slate-900/95 border border-amber-500/35 rounded-full py-1.5 pl-2 pr-2 shadow-2xl backdrop-blur-xl transition-all duration-300 max-w-[calc(100vw-1rem)]"
         >
           <div className="flex items-center gap-2">
             {/* Compact Artwork */}
@@ -227,8 +321,8 @@ export const RadioDockPlayer: React.FC = () => {
           </div>
         </aside>
       ) : (
-        <aside aria-label="Live Radio Player" className="fixed bottom-16 md:bottom-4 left-2 right-2 md:left-6 md:right-6 lg:left-auto lg:right-8 lg:w-[500px] z-40 bg-slate-900/95 dark:bg-slate-900/95 border border-amber-500/30 rounded-2xl p-2.5 sm:p-3 shadow-2xl backdrop-blur-xl transition-all duration-300">
-          <div className="flex items-center gap-3">
+        <aside aria-label="Live Radio Player" className="fixed bottom-[calc(4.25rem+env(safe-area-inset-bottom))] md:bottom-4 left-2 right-2 md:left-6 md:right-6 lg:left-auto lg:right-8 lg:w-[500px] z-40 bg-slate-900/95 dark:bg-slate-900/95 border border-amber-500/30 rounded-2xl p-2 sm:p-3 shadow-2xl backdrop-blur-xl transition-all duration-300">
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Station Artwork with Pulsing Equalizer Badge */}
             <div 
               onClick={() => setIsExpanded(true)}
@@ -292,7 +386,8 @@ export const RadioDockPlayer: React.FC = () => {
                 <button
                   onClick={retryPlayback}
                   title="Retry stream"
-                  className="p-2 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs flex items-center gap-1 transition-colors cursor-pointer"
+                  aria-label="Retry radio stream"
+                  className="min-w-[44px] min-h-[44px] sm:px-3 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs flex items-center justify-center gap-1 transition-colors cursor-pointer"
                 >
                   <RotateCcw className="w-4 h-4" />
                   <span className="hidden sm:inline">Retry</span>
@@ -302,21 +397,24 @@ export const RadioDockPlayer: React.FC = () => {
                   <button
                     onClick={playPrevRadio}
                     title="Previous station"
-                    className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                    aria-label="Previous radio station"
+                    className="hidden sm:flex min-w-[40px] min-h-[40px] rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 items-center justify-center transition-colors cursor-pointer"
                   >
                     <SkipBack className="w-4 h-4" />
                   </button>
                   <button
                     onClick={toggleRadioPlay}
                     title={isRadioPlaying ? 'Pause' : 'Play'}
-                    className="w-9 h-9 rounded-full bg-amber-500 hover:bg-amber-400 text-black flex items-center justify-center transition-transform active:scale-95 shadow-md shadow-amber-500/20 cursor-pointer"
+                    aria-label={isRadioPlaying ? 'Pause radio' : 'Play radio'}
+                    className="w-11 h-11 rounded-full bg-amber-500 hover:bg-amber-400 text-black flex items-center justify-center transition-transform active:scale-95 shadow-md shadow-amber-500/20 cursor-pointer"
                   >
                     {isRadioPlaying ? <Pause className="w-4 h-4 fill-black" /> : <Play className="w-4 h-4 fill-black ml-0.5" />}
                   </button>
                   <button
                     onClick={playNextRadio}
                     title="Next station"
-                    className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                    aria-label="Next radio station"
+                    className="hidden sm:flex min-w-[40px] min-h-[40px] rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 items-center justify-center transition-colors cursor-pointer"
                   >
                     <SkipForward className="w-4 h-4" />
                   </button>
@@ -327,7 +425,8 @@ export const RadioDockPlayer: React.FC = () => {
               <button
                 onClick={() => toggleFavorite(activeRadio.id)}
                 title={isFavorite(activeRadio.id) ? 'Remove Favorite' : 'Add to Favorites'}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 transition-colors cursor-pointer"
+                aria-label={isFavorite(activeRadio.id) ? 'Remove Favorite' : 'Add to Favorites'}
+                className="min-w-[40px] min-h-[40px] rounded-lg text-slate-400 hover:text-red-400 flex items-center justify-center transition-colors cursor-pointer"
               >
                 <Heart className={`w-4 h-4 ${isFavorite(activeRadio.id) ? 'fill-red-500 text-red-500' : ''}`} />
               </button>
@@ -337,7 +436,7 @@ export const RadioDockPlayer: React.FC = () => {
                 onClick={() => setIsMinimized(true)}
                 title="Collapse to mini-player"
                 aria-label="Collapse to mini-player"
-                className="p-1.5 rounded-lg text-slate-400 hover:text-amber-400 hover:bg-slate-800 transition-colors cursor-pointer"
+                className="min-w-[40px] min-h-[40px] rounded-lg text-slate-400 hover:text-amber-400 hover:bg-slate-800 flex items-center justify-center transition-colors cursor-pointer"
               >
                 <ChevronDown className="w-4 h-4" />
               </button>
@@ -346,14 +445,16 @@ export const RadioDockPlayer: React.FC = () => {
               <button
                 onClick={() => setIsExpanded(true)}
                 title="Expand Details"
-                className="hidden sm:block p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                aria-label="Expand Radio Details"
+                className="hidden sm:flex min-w-[40px] min-h-[40px] rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 items-center justify-center transition-colors cursor-pointer"
               >
                 <Maximize2 className="w-4 h-4" />
               </button>
               <button
                 onClick={closeRadioPlayer}
                 title="Close Radio"
-                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors cursor-pointer"
+                aria-label="Close Radio"
+                className="min-w-[40px] min-h-[40px] rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 flex items-center justify-center transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -370,24 +471,25 @@ export const RadioDockPlayer: React.FC = () => {
           aria-labelledby="expanded-radio-title"
           className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in"
         >
-          <div className="w-full sm:max-w-md bg-slate-900 border border-slate-800 sm:rounded-3xl rounded-t-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+          <div className="w-full sm:max-w-md bg-slate-900 border border-slate-800 sm:rounded-3xl rounded-t-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90dvh] pb-[env(safe-area-inset-bottom)]">
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-slate-800">
+            <div className="flex items-center justify-between p-4 border-b border-slate-800 shrink-0">
               <div className="flex items-center gap-2">
                 <Radio className="w-4 h-4 text-amber-400" />
                 <span id="expanded-radio-title" className="text-xs font-bold tracking-wider text-slate-300 uppercase">Live Radio Broadcast</span>
               </div>
               <button 
                 onClick={() => setIsExpanded(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                aria-label="Close radio sheet"
+                className="min-w-[44px] min-h-[44px] rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 flex items-center justify-center transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Body */}
-            <div className="p-6 flex flex-col items-center text-center">
-              <div className="relative w-48 h-48 rounded-2xl overflow-hidden bg-slate-800 shadow-xl border border-slate-700 mb-6 group">
+            <div className="p-5 sm:p-6 flex flex-col items-center text-center overflow-y-auto">
+              <div className="relative w-36 h-36 sm:w-48 sm:h-48 rounded-2xl overflow-hidden bg-slate-800 shadow-xl border border-slate-700 mb-5 group shrink-0">
                 {activeRadio.logoUrl ? (
                   <img src={activeRadio.logoUrl} alt={activeRadio.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                 ) : (
